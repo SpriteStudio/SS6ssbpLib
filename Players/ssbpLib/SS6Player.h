@@ -273,18 +273,10 @@ struct State
 class CustomSprite
 {
 private:
-	static unsigned int ssSelectorLocation;
-	static unsigned int	ssAlphaLocation;
-	static unsigned int	sshasPremultipliedAlpha;
-
-	//	static CCGLProgram* getCustomShaderProgram();
 
 private:
-	//	CCGLProgram*	_defaultShaderProgram;
-	bool				_useCustomShaderProgram;
 	float				_opacity;
 	int					_hasPremultipliedAlpha;
-	int					_colorBlendFuncNo;
 	bool				_flipX;
 	bool				_flipY;
 
@@ -307,11 +299,6 @@ public:
 	//エフェクト制御用ワーク
 	bool effectAttrInitialized;
 	float effectTimeTotal;
-
-	//Ver4互換用ワーク
-	SsVector3		_temp_position;
-	SsVector3		_temp_rotation;
-	SsVector2		_temp_scale;
 
 public:
 	CustomSprite();
@@ -423,13 +410,9 @@ public:
 
 
 	// override
-	virtual void draw(void);
 	virtual void setOpacity(unsigned char opacity);
 
 	// original functions
-	void changeShaderProgram(bool useCustomShaderProgram);
-	bool isCustomShaderProgramEnabled() const;
-	void setColorBlendFunc(int colorBlendFuncNo);
 	SSV3F_C4B_T2F_Quad& getAttributeRef();
 
 	void setFlippedX(bool flip);
@@ -1262,7 +1245,6 @@ protected:
 	void checkUserData(int frameNo);
 	float parcentVal(float val1, float val2, float parcent);
 	float parcentValRot(float val1, float val2, float parcent);
-	void update_matrix_ss4(CustomSprite *sprite, CustomSprite *parent, const PartData *partData);
 
 protected:
 	ResourceManager*	_resman;

@@ -145,6 +145,7 @@ extern void get_uv_rotation(float *u, float *v, float cu, float cv, float deg);
 */
 struct State
 {
+	std::string name;				/// パーツ名
 	int flags;						/// このフレームで更新が行われるステータスのフラグ
 	int cellIndex;					/// パーツに割り当てられたセルの番号
 	float x;						/// SS5アトリビュート：X座標
@@ -281,7 +282,8 @@ private:
 	bool				_flipY;
 
 public:
-	float				_mat[16];
+	float				_mat[16];		//継承マトリクス
+	float				_localmat[16];	//ローカルマトリクス
 	State				_state;
 	bool				_isStateChanged;
 	CustomSprite*		_parent;
@@ -350,6 +352,7 @@ public:
 
 	void setState(const State& state)
 	{
+		_state.name = state.name;
 		setStateValue(_state.flags, state.flags);
 		setStateValue(_state.cellIndex, state.cellIndex);
 		setStateValue(_state.x, state.x);
@@ -1219,6 +1222,16 @@ public:
 	int getDrawSpriteCount(void);
 
 	/*
+	* rootパーツの状態を決めるマトリクスを設定します。
+	*
+	* @param  mat			与えるマトリクス
+	* @param  use			マトリクスを適用するか？
+	*
+	*/
+	void setParentMatrix(float* mat, bool use);
+
+
+	/*
 	* プレイヤーの更新を行います。ゲームの更新タイミングで呼び出してください。
 	*/
 	void update(float dt);
@@ -1284,6 +1297,9 @@ protected:
 	UserData			_userData;
 
 	State				_state;
+
+	float				_parentMat[16];					//プレイヤーが持つ継承されたマトリクス
+	bool				_parentMatUse;					//プレイヤーが持つ継承されたマトリクスがあるか？
 };
 
 

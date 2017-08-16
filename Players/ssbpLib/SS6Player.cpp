@@ -2228,6 +2228,12 @@ int Player::getDrawSpriteCount(void)
 	return (_draw_count);
 }
 
+void Player::setParentMatrix(float* mat, bool use )
+{
+	memcpy(_parentMat, mat, sizeof(float) * 16);	//表示にはローカルマトリクスを適用する
+	_parentMatUse = use;					//プレイヤーが持つ継承されたマトリクスがあるか？
+}
+
 void Player::setFrame(int frameNo, float dt)
 {
 	if (!_currentAnimeRef) return;
@@ -2379,6 +2385,7 @@ void Player::setFrame(int frameNo, float dt)
 		}
 
 		//ステータス保存
+		state.name = static_cast<const char*>(ptr(partData->name));
 		state.flags = flags;
 		state.cellIndex = cellIndex;
 		state.x = x;
@@ -2560,7 +2567,6 @@ void Player::setFrame(int frameNo, float dt)
 		}
 		
 		//頂点情報の取得
-		unsigned char alpha = (unsigned char)opacity;
 		SSColor4B color4 = { 0xff, 0xff, 0xff, 0xff };
 
 		color4.r = color4.r * _col_r / 255;
@@ -2573,14 +2579,13 @@ void Player::setFrame(int frameNo, float dt)
 		quad.br.colors = color4;
 
 
-		// カラーブレンドの反映
+		// パーツカラーの反映
 		if (flags & PART_FLAG_PARTS_COLOR)
 		{
 
 			int typeAndFlags = reader.readU16();
 			int funcNo = typeAndFlags & 0xff;
 			int cb_flags = (typeAndFlags >> 8) & 0xff;
-			float blend_rate = 1.0f;
 
 			sprite->_state.partsColorFunc = funcNo;
 			sprite->_state.partsColorType = cb_flags;
@@ -2588,14 +2593,12 @@ void Player::setFrame(int frameNo, float dt)
 			//制限となります。
 			if (cb_flags & VERTEX_FLAG_ONE)
 			{
-				blend_rate = reader.readFloat();
 				reader.readColor(color4);
 
 
 				color4.r = color4.r * _col_r / 255;
 				color4.g = color4.g * _col_g / 255;
 				color4.b = color4.b * _col_b / 255;
-				color4.a = color4.a * alpha / 255;
 
 				quad.tl.colors =
 				quad.tr.colors =
@@ -2606,25 +2609,21 @@ void Player::setFrame(int frameNo, float dt)
 			{
 				if (cb_flags & VERTEX_FLAG_LT)
 				{
-					blend_rate = reader.readFloat();
 					reader.readColor(color4);
 					quad.tl.colors = color4;
 				}
 				if (cb_flags & VERTEX_FLAG_RT)
 				{
-					blend_rate = reader.readFloat();
 					reader.readColor(color4);
 					quad.tr.colors = color4;
 				}
 				if (cb_flags & VERTEX_FLAG_LB)
 				{
-					blend_rate = reader.readFloat();
 					reader.readColor(color4);
 					quad.bl.colors = color4;
 				}
 				if (cb_flags & VERTEX_FLAG_RB)
 				{
-					blend_rate = reader.readFloat();
 					reader.readColor(color4);
 					quad.br.colors = color4;
 				}
@@ -2858,57 +2857,94 @@ void Player::setFrame(int frameNo, float dt)
 		if (sprite->_isStateChanged)
 		{
 			{
-				if (partIndex > 0)
+				int num = 1;
+				if ((sprite->_state.flags & PART_FLAG_LOCALSCALE_X) || (sprite->_state.flags & PART_FLAG_LOCALSCALE_Y))
 				{
-					//親のマトリクスを適用
-					CustomSprite* parent = static_cast<CustomSprite*>(_parts.at(partData->parentIndex));
-					memcpy(mat, parent->_mat, sizeof(float) * 16);
+					//ローカルスケール対応
+					num = 2;
 				}
-				else
+				int matcnt;
+				for (matcnt = 0; matcnt < num; matcnt++)
 				{
-					IdentityMatrix(mat);
-					//rootパーツはプレイヤーからステータスを引き継ぐ
-					sprite->_state.x += _state.x;
-					sprite->_state.y += _state.y;
-					sprite->_state.rotationX += _state.rotationX;
-					sprite->_state.rotationY += _state.rotationY;
-					sprite->_state.rotationZ += _state.rotationZ;
-					sprite->_state.scaleX *= _state.scaleX;
-					sprite->_state.scaleY *= _state.scaleY;
-					//プレイヤーのフリップ
-					if (_state.flipX == true)
+					if (partIndex > 0)
 					{
-						sprite->_state.scaleX = -sprite->_state.scaleX;	//フラグ反転
+						//親のマトリクスを適用
+						CustomSprite* parent = static_cast<CustomSprite*>(_parts.at(partData->parentIndex));
+						memcpy(mat, parent->_mat, sizeof(float) * 16);
 					}
-					if (_state.flipY == true)
+					else
 					{
-						sprite->_state.scaleY = -sprite->_state.scaleY;	//フラグ反転
+						IdentityMatrix(mat);
+						//rootパーツはプレイヤーからステータスを引き継ぐ
+						if (_parentMatUse == true)					//プレイヤーが持つ継承されたマトリクスがあるか？
+						{
+							memcpy(mat, _parentMat, sizeof(float) * 16);
+						}
+
+						sprite->_state.x += _state.x;
+						sprite->_state.y += _state.y;
+						sprite->_state.rotationX += _state.rotationX;
+						sprite->_state.rotationY += _state.rotationY;
+						sprite->_state.rotationZ += _state.rotationZ;
+						sprite->_state.scaleX *= _state.scaleX;
+						sprite->_state.scaleY *= _state.scaleY;
+						//プレイヤーのフリップ
+						if (_state.flipX == true)
+						{
+							sprite->_state.scaleX = -sprite->_state.scaleX;	//フラグ反転
+						}
+						if (_state.flipY == true)
+						{
+							sprite->_state.scaleY = -sprite->_state.scaleY;	//フラグ反転
+						}
+
+						sprite->_state.Calc_rotationX = sprite->_state.rotationX;
+						sprite->_state.Calc_rotationY = sprite->_state.rotationY;
+						sprite->_state.Calc_rotationZ = sprite->_state.rotationZ;
+
+						sprite->_state.Calc_scaleX = sprite->_state.scaleX;
+						sprite->_state.Calc_scaleY = sprite->_state.scaleY;
 					}
+					TranslationMatrix(t, sprite->_state.x, sprite->_state.y, 0.0f);
+					MultiplyMatrix(t, mat, mat);
 
-					sprite->_state.Calc_rotationX = sprite->_state.rotationX;
-					sprite->_state.Calc_rotationY = sprite->_state.rotationY;
-					sprite->_state.Calc_rotationZ = sprite->_state.rotationZ;
+					Matrix4RotationX(t, SSRadianToDegree(sprite->_state.rotationX));
+					MultiplyMatrix(t, mat, mat);
 
-					sprite->_state.Calc_scaleX = sprite->_state.scaleX;
-					sprite->_state.Calc_scaleY = sprite->_state.scaleY;
+					Matrix4RotationY(t, SSRadianToDegree(sprite->_state.rotationY));
+					MultiplyMatrix(t, mat, mat);
+
+					Matrix4RotationZ(t, SSRadianToDegree(sprite->_state.rotationZ));
+					MultiplyMatrix(t, mat, mat);
+
+					float sx = sprite->_state.scaleX;
+					float sy = sprite->_state.scaleY;
+					if (matcnt > 0)
+					{
+						//ローカルスケールを適用する
+						sx *= sprite->_state.localscaleX;
+						sy *= sprite->_state.localscaleY;
+					}
+					ScaleMatrix(t, sx, sy, 1.0f);
+					MultiplyMatrix(t, mat, mat);
+
+					if (matcnt > 0)
+					{
+						memcpy(sprite->_localmat, mat, sizeof(float) * 16);	//ローカルマトリクスを作成する
+					}
+					else
+					{
+						memcpy(sprite->_mat, mat, sizeof(float) * 16);		//継承マトリクスを作成する
+					}
 				}
-				TranslationMatrix(t, sprite->_state.x, sprite->_state.y, 0.0f);
-				MultiplyMatrix(t, mat, mat);
 
-				Matrix4RotationX(t, SSRadianToDegree(sprite->_state.rotationX));
-				MultiplyMatrix(t, mat, mat);
+				if (num == 1)
+				{
+					//ローカルスケールが使用されていない場合は継承マトリクスをローカルマトリクスに適用
+					memcpy(sprite->_localmat, mat, sizeof(float) * 16);
+				}
 
-				Matrix4RotationY(t, SSRadianToDegree(sprite->_state.rotationY));
-				MultiplyMatrix(t, mat, mat);
-
-				Matrix4RotationZ(t, SSRadianToDegree(sprite->_state.rotationZ));
-				MultiplyMatrix(t, mat, mat);
-
-				ScaleMatrix(t, sprite->_state.scaleX, sprite->_state.scaleY, 1.0f);
-				MultiplyMatrix(t, mat, mat);
-
-				memcpy(sprite->_mat, mat, sizeof(float) * 16);
-				memcpy(sprite->_state.mat, mat, sizeof(float) * 16);
+				memcpy(sprite->_state.mat, sprite->_localmat, sizeof(float) * 16);	//表示にはローカルマトリクスを適用する
 
 				if (partIndex > 0)
 				{
@@ -2931,9 +2967,7 @@ void Player::setFrame(int frameNo, float dt)
 					//インスタンスパーツの親を設定
 					if (sprite->_ssplayer)
 					{
-						sprite->_ssplayer->setPosition(sprite->_mat[12], sprite->_mat[13]);
-						sprite->_ssplayer->setScale(sprite->_state.Calc_scaleX, sprite->_state.Calc_scaleY);
-						sprite->_ssplayer->setRotation(sprite->_state.Calc_rotationX, sprite->_state.Calc_rotationY, sprite->_state.Calc_rotationZ);
+						sprite->_ssplayer->setParentMatrix( sprite->_state.mat, true );	//プレイヤーに対してマトリクスを設定する
 						sprite->_ssplayer->setAlpha(sprite->_state.Calc_opacity);
 					}
 
@@ -3037,7 +3071,7 @@ void Player::draw()
 		CustomSprite* sprite = static_cast<CustomSprite*>(_parts.at(partIndex));
 		if (sprite->_ssplayer)
 		{
-			if ((sprite->_state.isVisibled == true) && (sprite->_state.opacity > 0))
+			if (sprite->_state.isVisibled == true)
 			{
 				//インスタンスパーツの場合は子供のプレイヤーを再生
 				sprite->_ssplayer->draw();
@@ -3048,7 +3082,7 @@ void Player::draw()
 		{
 			if (sprite->refEffect)
 			{ 
-				if ((sprite->_state.isVisibled == true) && (sprite->_state.opacity > 0))
+				if (sprite->_state.isVisibled == true)
 				{
 					//エフェクトパーツ
 					sprite->refEffect->draw();
@@ -3059,7 +3093,7 @@ void Player::draw()
 			{
 				if (sprite->_state.texture.handle != -1)
 				{
-					if ((sprite->_state.isVisibled == true) && (sprite->_state.opacity > 0))
+					if (sprite->_state.isVisibled == true)
 					{
 						SSDrawSprite(sprite->_state);
 						_draw_count++;

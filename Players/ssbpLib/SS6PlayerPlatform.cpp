@@ -133,31 +133,32 @@ namespace ss
 		switch (state.blendfunc)
 		{
 			case BLEND_MIX:		///< 0 ブレンド（ミックス）
-				if (state.opacity == 255)
-				{
-					SetDrawBlendMode(DX_BLENDMODE_NOBLEND, state.opacity);
-				}
-				else
-				{
-					SetDrawBlendMode(DX_BLENDMODE_ALPHA, state.opacity);
-				}
+				SetDrawBlendMode(DX_BLENDMODE_ALPHA, 255);
 				break;
 			case BLEND_MUL:		///< 1 乗算
-				SetDrawBlendMode(DX_BLENDMODE_MULA, state.opacity);
+				SetDrawBlendMode(DX_BLENDMODE_MULA, 255);
 				break;
 			case BLEND_ADD:		///< 2 加算
-				SetDrawBlendMode(DX_BLENDMODE_ADD, state.opacity);
+				SetDrawBlendMode(DX_BLENDMODE_ADD, 255);
 				break;
 			case BLEND_SUB:		///< 3 減算
-				SetDrawBlendMode(DX_BLENDMODE_SUB, state.opacity);
+				SetDrawBlendMode(DX_BLENDMODE_SUB, 255);
 				break;
 			case BLEND_MULALPHA:	///< 4 α乗算
+				//SSとは描画結果は異なります。
+				SetDrawBlendMode(DX_BLENDMODE_PMA_ALPHA, 255);
 				break;
 			case BLEND_SCREEN:		///< 5 スクリーン
+				//未対応とりあずMIXと同じにしておく
+				SetDrawBlendMode(DX_BLENDMODE_ALPHA, 255);
 				break;
 			case BLEND_EXCLUSION:	///< 6 除外
+				//未対応とりあずMIXと同じにしておく
+				SetDrawBlendMode(DX_BLENDMODE_ALPHA, 255);
 				break;
 			case BLEND_INVERT:		///< 7 反転
+				//SSとは描画結果は異なります。
+				SetDrawBlendMode(DX_BLENDMODE_INVSRC, 255);
 				break;
 
 		}
@@ -183,19 +184,11 @@ namespace ss
 			case BLEND_MUL:			///< 1 乗算
 				// ブレンド方法は乗算以外未対応
 				// とりあえず左上の色を反映させる
-				SetDrawBright(state.quad.tl.colors.r, state.quad.tl.colors.g, state.quad.tl.colors.b);
+//				SetDrawBright(state.quad.tl.colors.r, state.quad.tl.colors.g, state.quad.tl.colors.b);
 				break;
 			case BLEND_ADD:			///< 2 加算
 				break;
 			case BLEND_SUB:			///< 3 減算
-				break;
-			case BLEND_MULALPHA:	///< 4 α乗算
-				break;
-			case BLEND_SCREEN:		///< 5 スクリーン
-				break;
-			case BLEND_EXCLUSION:	///< 6 除外
-				break;
-			case BLEND_INVERT:		///< 7 反転
 				break;
 			}
 //			DrawModiGraph
@@ -244,10 +237,16 @@ namespace ss
 		quad.br.vertices.y = t[13];
 
 		//頂点カラーにアルファを設定
-		quad.tl.colors.a = quad.bl.colors.a * state.Calc_opacity / 255;
-		quad.tr.colors.a = quad.bl.colors.a * state.Calc_opacity / 255;
-		quad.bl.colors.a = quad.bl.colors.a * state.Calc_opacity / 255;
-		quad.br.colors.a = quad.bl.colors.a * state.Calc_opacity / 255;
+		float alpha = state.Calc_opacity / 255.0f;
+		if ( state.flags & PART_FLAG_LOCALOPACITY )
+		{
+			alpha = state.localopacity / 255.0f;	//ローカル不透明度対応
+		}
+
+		quad.tl.colors.a = quad.tl.colors.a * alpha;
+		quad.tr.colors.a = quad.tr.colors.a * alpha;
+		quad.bl.colors.a = quad.bl.colors.a * alpha;
+		quad.br.colors.a = quad.br.colors.a * alpha;
 
 		//DXライブラリ用の頂点バッファを作成する
 		VERTEX_3D vertex[4] = {

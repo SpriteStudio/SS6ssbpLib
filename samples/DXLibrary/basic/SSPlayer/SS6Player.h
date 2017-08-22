@@ -291,6 +291,9 @@ public:
 	float				_liveFrame;
 	SSV3F_C4B_T2F_Quad	_sQuad;
 
+	PartData			_partData;
+	bool				_maskInfluence;		//親パーツのマスク対象を加味したマスク対象
+
 	//エフェクト用パラメータ
 	SsEffectRenderV2*	refEffect;
 	SsPartState			partState;
@@ -1258,6 +1261,8 @@ protected:
 	void checkUserData(int frameNo);
 	float parcentVal(float val1, float val2, float parcent);
 	float parcentValRot(float val1, float val2, float parcent);
+	void setMaskFuncFlag(bool flg);
+	void setMaskParentSetting(bool flg);
 
 protected:
 	ResourceManager*	_resman;
@@ -1300,6 +1305,10 @@ protected:
 
 	float				_parentMat[16];					//プレイヤーが持つ継承されたマトリクス
 	bool				_parentMatUse;					//プレイヤーが持つ継承されたマトリクスがあるか？
+	bool				_maskFuncFlag;					//マスク機能を有効にするか？（インスタンスのソースアニメはマスクが無効になる）
+	bool				_maskParentSetting;				//親パーツのマスク対象（インスタンスのみ使用する）
+
+	std::vector<CustomSprite *> _maskIndexList;			//マスク対象となるパーツ
 };
 
 

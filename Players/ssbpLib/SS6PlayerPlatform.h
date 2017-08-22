@@ -14,15 +14,19 @@ namespace ss
 	struct State;
 	struct UserData;
 	class Player;
+	class CustomSprite;
 
 	extern unsigned char* SSFileOpen(const char* pszFileName, const char* pszMode, unsigned long * pSize);
 	extern long SSTextureLoad(const char* pszFileName, SsTexWrapMode::_enum  wrapmode, SsTexFilterMode::_enum filtermode);
 	extern bool SSTextureRelese(long handle);
 	extern bool isAbsolutePath(const std::string& strPath);
-	extern void SSDrawSprite(State state);
+	extern void SSDrawSprite(CustomSprite *sprite);
 	extern bool SSGetTextureSize(long handle, int &w, int &h);
 	extern void SSonUserData(Player *player, UserData *userData);
 	extern void SSPlayEnd(Player *player);
+	extern void clearMask();
+	extern void enableMask(bool flag);
+	extern void execMask(CustomSprite *sprite);
 
 
 

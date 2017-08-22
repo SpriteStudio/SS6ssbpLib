@@ -122,11 +122,68 @@ namespace ss
 	/**
 	* スプライトの表示
 	*/
-	void SSDrawSprite(State state)
+	void SSDrawSprite(CustomSprite *sprite)
 	{
+		if (sprite->_state.isVisibled == false) return; //非表示なので処理をしない
+
+		State state = sprite->_state;
 		//未対応機能
 		//ステータスから情報を取得し、各プラットフォームに合わせて機能を実装してください。
-		//X回転、Y回転、カラーブレンド（一部のみ）
+		//一部描画モード、一部パーツカラー
+		//OPENGLでの実装についてはSpriteStudio6SDKを参照してください。
+
+		/**
+		* DXライブラリの3D機能を使用してスプライトを表示します。
+		* DXライブラリの3D機能は上方向がプラスになります。
+		* 3Dを使用する場合頂点情報を使用して再現すると頂点変形やUV系のアトリビュートを反映させる事ができます。
+		*/
+		//描画用頂点情報を作成
+		SSV3F_C4B_T2F_Quad quad;
+		quad = state.quad;
+
+		//原点補正
+		float cx = ((state.rect.size.width) * -(state.pivotX - 0.5f));
+		float cy = ((state.rect.size.height) * +(state.pivotY - 0.5f));
+
+		quad.tl.vertices.x += cx;
+		quad.tl.vertices.y += cy;
+		quad.tr.vertices.x += cx;
+		quad.tr.vertices.y += cy;
+		quad.bl.vertices.x += cx;
+		quad.bl.vertices.y += cy;
+		quad.br.vertices.x += cx;
+		quad.br.vertices.y += cy;
+
+		float t[16];
+		TranslationMatrix(t, quad.tl.vertices.x, quad.tl.vertices.y, 0.0f);
+
+		MultiplyMatrix(t, state.mat, t);
+		quad.tl.vertices.x = t[12];
+		quad.tl.vertices.y = t[13];
+		TranslationMatrix(t, quad.tr.vertices.x, quad.tr.vertices.y, 0.0f);
+		MultiplyMatrix(t, state.mat, t);
+		quad.tr.vertices.x = t[12];
+		quad.tr.vertices.y = t[13];
+		TranslationMatrix(t, quad.bl.vertices.x, quad.bl.vertices.y, 0.0f);
+		MultiplyMatrix(t, state.mat, t);
+		quad.bl.vertices.x = t[12];
+		quad.bl.vertices.y = t[13];
+		TranslationMatrix(t, quad.br.vertices.x, quad.br.vertices.y, 0.0f);
+		MultiplyMatrix(t, state.mat, t);
+		quad.br.vertices.x = t[12];
+		quad.br.vertices.y = t[13];
+
+		//頂点カラーにアルファを設定
+		float alpha = state.Calc_opacity / 255.0f;
+		if (state.flags & PART_FLAG_LOCALOPACITY)
+		{
+			alpha = state.localopacity / 255.0f;	//ローカル不透明度対応
+		}
+
+		quad.tl.colors.a = quad.tl.colors.a * alpha;
+		quad.tr.colors.a = quad.tr.colors.a * alpha;
+		quad.bl.colors.a = quad.bl.colors.a * alpha;
+		quad.br.colors.a = quad.br.colors.a * alpha;
 
 		//描画モード
 		//
@@ -195,59 +252,6 @@ namespace ss
 
 		}
 
-		/**
-		* DXライブラリの3D機能を使用してスプライトを表示します。
-		* DXライブラリの3D機能は上方向がプラスになります。
-		* 3Dを使用する場合頂点情報を使用して再現すると頂点変形やUV系のアトリビュートを反映させる事ができます。
-		*/
-		//描画用頂点情報を作成
-		SSV3F_C4B_T2F_Quad quad;
-		quad = state.quad;
-
-		//原点補正
-		float cx = ((state.rect.size.width) * -(state.pivotX - 0.5f));
-		float cy = ((state.rect.size.height) * +(state.pivotY - 0.5f));
-
-		quad.tl.vertices.x += cx;
-		quad.tl.vertices.y += cy;
-		quad.tr.vertices.x += cx;
-		quad.tr.vertices.y += cy;
-		quad.bl.vertices.x += cx;
-		quad.bl.vertices.y += cy;
-		quad.br.vertices.x += cx;
-		quad.br.vertices.y += cy;
-
-		float t[16];
-		TranslationMatrix(t, quad.tl.vertices.x, quad.tl.vertices.y, 0.0f);
-
-		MultiplyMatrix(t, state.mat, t);
-		quad.tl.vertices.x = t[12];
-		quad.tl.vertices.y = t[13];
-		TranslationMatrix(t, quad.tr.vertices.x, quad.tr.vertices.y, 0.0f);
-		MultiplyMatrix(t, state.mat, t);
-		quad.tr.vertices.x = t[12];
-		quad.tr.vertices.y = t[13];
-		TranslationMatrix(t, quad.bl.vertices.x, quad.bl.vertices.y, 0.0f);
-		MultiplyMatrix(t, state.mat, t);
-		quad.bl.vertices.x = t[12];
-		quad.bl.vertices.y = t[13];
-		TranslationMatrix(t, quad.br.vertices.x, quad.br.vertices.y, 0.0f);
-		MultiplyMatrix(t, state.mat, t);
-		quad.br.vertices.x = t[12];
-		quad.br.vertices.y = t[13];
-
-		//頂点カラーにアルファを設定
-		float alpha = state.Calc_opacity / 255.0f;
-		if ( state.flags & PART_FLAG_LOCALOPACITY )
-		{
-			alpha = state.localopacity / 255.0f;	//ローカル不透明度対応
-		}
-
-		quad.tl.colors.a = quad.tl.colors.a * alpha;
-		quad.tr.colors.a = quad.tr.colors.a * alpha;
-		quad.bl.colors.a = quad.bl.colors.a * alpha;
-		quad.br.colors.a = quad.br.colors.a * alpha;
-
 		//DXライブラリ用の頂点バッファを作成する
 		VERTEX_3D vertex[4] = {
 			vertex3Dfrom(quad.tl),
@@ -259,6 +263,97 @@ namespace ss
 		DrawPolygon3DBase(vertex, 4, DX_PRIMTYPE_TRIANGLESTRIP, state.texture.handle, true);
 
 		SetDrawBlendMode(DX_BLENDMODE_NOBLEND, 0);	//ブレンドステートを通常へ戻す
+	}
+
+#define OPENGL_COMMAND	0
+
+	void clearMask()
+	{
+#if OPENGL_COMMAND
+		glClear(GL_STENCIL_BUFFER_BIT);
+#endif
+		enableMask(false);
+	}
+
+	void enableMask(bool flag)
+	{
+
+		if (flag)
+		{
+#if OPENGL_COMMAND
+			glEnable(GL_STENCIL_TEST);
+#endif
+		}
+		else {
+#if OPENGL_COMMAND
+			glDisable(GL_STENCIL_TEST);
+			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+#endif
+		}
+	}
+
+	void execMask(CustomSprite *sprite)
+	{
+#if OPENGL_COMMAND
+		glEnable(GL_STENCIL_TEST);
+#endif
+		if (sprite->_partData.type == PARTTYPE_MASK)
+		{
+
+#if OPENGL_COMMAND
+			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+#endif
+
+			if (!(sprite->_maskInfluence)) { //マスクが有効では無い＝重ね合わせる
+#if OPENGL_COMMAND
+				glStencilFunc(GL_ALWAYS, 1, ~0);  //常に通過
+				glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+#endif
+				//描画部分を1へ
+			}
+			else {
+#if OPENGL_COMMAND
+				glStencilFunc(GL_ALWAYS, 1, ~0);  //常に通過
+				glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+#endif
+			}
+
+
+#if OPENGL_COMMAND
+			glEnable(GL_ALPHA_TEST);
+
+			//この設定だと
+			//1.0fでは必ず抜けないため非表示フラグなし（＝1.0f)のときの挙動は考えたほうがいい
+
+			//不透明度からマスク閾値へ変更
+			float mask_alpha = (float)(255 - sprite->_state.masklimen) / 255.0f;
+			glAlphaFunc(GL_GREATER, mask_alpha);
+#endif
+			sprite->_state.Calc_opacity = 255;	//マスクパーツは不透明度1.0にする
+		}
+		else {
+
+			if ((sprite->_maskInfluence)) //パーツに対してのマスクが有効か否か
+			{
+#if OPENGL_COMMAND
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+				glStencilFunc(GL_NOTEQUAL, 0x1, 0x1);  //1と等しい
+				glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+#endif
+			}
+			else {
+#if OPENGL_COMMAND
+				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+				glDisable(GL_STENCIL_TEST);
+#endif
+			}
+
+			// 常に無効
+#if OPENGL_COMMAND
+			glDisable(GL_ALPHA_TEST);
+#endif
+		}
+
 	}
 
 	/**

@@ -663,7 +663,7 @@ void	SsEffectRenderParticle::draw(SsEffectRenderer* render)
 	state.mat[12] += cx;
 	state.mat[13] += cy;
 
-	SSDrawSprite(state);	//描画
+//	SSDrawSprite(state);	//描画
 }
 //--------------------------------------------------------------------------------------
 //

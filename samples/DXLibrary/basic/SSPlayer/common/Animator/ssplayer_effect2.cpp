@@ -551,6 +551,7 @@ void	SsEffectRenderV2::drawSprite(
 		return;
 	}
 
+	CustomSprite cs = *_parentSprite;
 	State state;
 	state = _parentSprite->_state;		//親パーツの情報をコピー
 	for (int i = 0; i < 16; i++)
@@ -650,7 +651,8 @@ void	SsEffectRenderV2::drawSprite(
 	state.mat[12] += cx;
 	state.mat[13] += cy;
 
-	SSDrawSprite(state);	//描画
+	cs._state = state;
+	SSDrawSprite(&cs);	//描画
 
 	_drawSpritecount++;
 }

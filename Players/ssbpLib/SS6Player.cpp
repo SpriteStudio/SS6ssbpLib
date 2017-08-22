@@ -1276,6 +1276,8 @@ Player::Player(void)
 	,_startFrameOverWrite(-1)	//開始フレームの上書き設定
 	,_endFrameOverWrite(-1)		//終了フレームの上書き設定
 	, _seedOffset(0)
+	,_maskFuncFlag(true)
+	,_maskParentSetting(true)
 {
 	int i;
 	for (i = 0; i < PART_VISIBLE_MAX; i++)
@@ -1768,6 +1770,8 @@ void Player::setPartsParentage()
 		const PartData* partData = &parts[partIndex];
 		CustomSprite* sprite = static_cast<CustomSprite*>(_parts.at(partIndex));
 		
+		sprite->_partData = *partData;
+
 		if (partIndex > 0)
 		{
 			CustomSprite* parent = static_cast<CustomSprite*>(_parts.at(partData->parentIndex));
@@ -1781,6 +1785,8 @@ void Player::setPartsParentage()
 		//インスタンスパーツの生成
 		std::string refanimeName = static_cast<const char*>(ptr(partData->refname));
 
+		sprite->_maskInfluence = partData->maskInfluence && _maskParentSetting;	//インスタンス時の親パーツを加味したマスク対象
+
 		SS_SAFE_DELETE(sprite->_ssplayer);
 		if (refanimeName != "")
 		{
@@ -1789,6 +1795,9 @@ void Player::setPartsParentage()
 			sprite->_ssplayer->setData(_currentdataKey);
 			sprite->_ssplayer->play(refanimeName);				 // アニメーション名を指定(ssae名/アニメーション名も可能、詳しくは後述)
 			sprite->_ssplayer->animePause();
+
+			sprite->_ssplayer->setMaskFuncFlag(false);
+			sprite->_ssplayer->setMaskParentSetting(partData->maskInfluence);
 		}
 
 		//エフェクトパーツの生成
@@ -2253,6 +2262,8 @@ void Player::setFrame(int frameNo, float dt)
 	// 前回の描画フレームと同じときはスキップ
 	//インスタンスアニメがあるので毎フレーム更新するためコメントに変更
 	//	if (!forceUpdate && frameNo == _prevDrawFrameNo) return;
+
+	_maskIndexList.clear();
 
 	ToPointer ptr(_currentRs->data);
 
@@ -2830,6 +2841,10 @@ void Player::setFrame(int frameNo, float dt)
 		sprite->setState(state);
 		sprite->_orgState = sprite->_state;
 
+		if (partData->type == PARTTYPE_MASK)
+		{
+			_maskIndexList.push_back(sprite);
+		}
 	}
 
 
@@ -2968,7 +2983,15 @@ void Player::setFrame(int frameNo, float dt)
 					if (sprite->_ssplayer)
 					{
 						sprite->_ssplayer->setParentMatrix( sprite->_state.mat, true );	//プレイヤーに対してマトリクスを設定する
-						sprite->_ssplayer->setAlpha(sprite->_state.Calc_opacity);
+
+						float alpha = sprite->_state.Calc_opacity;
+						if (sprite->_state.flags & PART_FLAG_LOCALOPACITY)
+						{
+							alpha = sprite->_state.localopacity;	//ローカル不透明度対応
+						}
+
+
+						sprite->_ssplayer->setAlpha(alpha);
 					}
 
 				}
@@ -3064,44 +3087,81 @@ void Player::draw()
 	ToPointer ptr(_currentRs->data);
 	const AnimePackData* packData = _currentAnimeRef->animePackData;
 
+
+	if (_maskFuncFlag == true) //マスク機能が有効（インスタンスのソースアニメではない）
+	{
+		//初期に適用されているマスクを精製
+		for (size_t i = 0; i < _maskIndexList.size(); i++)
+		{
+			CustomSprite* sprite = _maskIndexList[i];
+
+			if (sprite->_state.isVisibled == true)
+			{
+				//ステンシルバッファの作成
+				SSDrawSprite(sprite);
+				_draw_count++;
+			}
+		}
+	}
+	int mask_index = 0;
+
 	for (int index = 0; index < packData->numParts; index++)
 	{
+
 		int partIndex = _partIndex[index];
 		//スプライトの表示
 		CustomSprite* sprite = static_cast<CustomSprite*>(_parts.at(partIndex));
-		if (sprite->_ssplayer)
+
+		if (sprite->_state.isVisibled == true)
 		{
-			if (sprite->_state.isVisibled == true)
+			if (sprite->_ssplayer)
 			{
 				//インスタンスパーツの場合は子供のプレイヤーを再生
 				sprite->_ssplayer->draw();
 				_draw_count += sprite->_ssplayer->getDrawSpriteCount();
 			}
-		}
-		else
-		{
-			if (sprite->refEffect)
-			{ 
-				if (sprite->_state.isVisibled == true)
-				{
+			else
+			{
+				if (sprite->refEffect)
+				{ 
 					//エフェクトパーツ
+					execMask(sprite);	//マスク初期化
+
 					sprite->refEffect->draw();
 					_draw_count = sprite->refEffect->getDrawSpriteCount();
 				}
-			}
-			else
-			{
-				if (sprite->_state.texture.handle != -1)
+				else if (sprite->_partData.type == PARTTYPE_MASK)
 				{
-					if (sprite->_state.isVisibled == true)
+					if (_maskFuncFlag == true) //マスク機能が有効（インスタンスのソースアニメではない）
 					{
-						SSDrawSprite(sprite->_state);
+						clearMask();
+						mask_index++;	//0番は処理しないので先にインクメントする
+
+						for (size_t i = mask_index; i < _maskIndexList.size(); i++)
+						{
+							CustomSprite* sprite2 = _maskIndexList[i];
+							if (sprite2->_state.isVisibled == true)
+							{
+								SSDrawSprite(sprite2);
+								_draw_count++;
+							}
+						}
+					}
+				}
+				else
+				{
+					if (sprite->_state.texture.handle != -1)
+					{
+						execMask(sprite);	//マスク初期化
+
+						SSDrawSprite(sprite);
 						_draw_count++;
 					}
 				}
 			}
 		}
 	}
+	enableMask(false);
 }
 
 void Player::checkUserData(int frameNo)
@@ -3266,6 +3326,20 @@ float Player::parcentValRot(float val1, float val2, float parcent)
 	return (newval);
 }
 
+//マスク用ステンシルバッファの初期化を行うか？
+//インスタンスパーツとして再生する場合のみ設定する
+void Player::setMaskFuncFlag(bool flg)
+{
+	_maskFuncFlag = flg;
+}
+
+//親のマスク対象
+//インスタンスパーツとして再生する場合のみ設定する
+//各パーツのマスク対象とアンドを取って処理する
+void Player::setMaskParentSetting(bool flg)
+{
+	_maskParentSetting = flg;
+}
 
 /**
  * CustomSprite
@@ -3278,6 +3352,7 @@ CustomSprite::CustomSprite():
 	, _ssplayer(0)
 	,effectAttrInitialized(false)
 	,effectTimeTotal(0)
+	, _maskInfluence(true)
 {
 }
 

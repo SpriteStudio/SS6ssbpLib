@@ -1381,7 +1381,18 @@ int Player::getFrameNo() const
 
 void Player::setFrameNo(int frameNo)
 {
-	_playingFrame = (float)frameNo;
+	if (_currentAnimeRef)
+	{
+		_playingFrame = (float)frameNo;
+		if (_playingFrame < _currentAnimeRef->animationData->startFrames )
+		{
+			_playingFrame = _currentAnimeRef->animationData->startFrames;
+		}
+		if (_playingFrame > _currentAnimeRef->animationData->endFrames)
+		{
+			_playingFrame = _currentAnimeRef->animationData->endFrames;
+		}
+	}
 }
 
 float Player::getStep() const
@@ -2312,8 +2323,8 @@ void Player::setFrame(int frameNo, float dt)
 		float uv_scale_X		= flags & PART_FLAG_U_SCALE ? reader.readFloat() : init->uv_scale_X;
 		float uv_scale_Y		= flags & PART_FLAG_V_SCALE ? reader.readFloat() : init->uv_scale_Y;
 		float boundingRadius	= flags & PART_FLAG_BOUNDINGRADIUS ? reader.readFloat() : init->boundingRadius;
-		float masklimen			= flags & PART_FLAG_MASK ? reader.readFloat() : init->masklimen;
-		float priority			= flags & PART_FLAG_PRIORITY ? reader.readFloat() : init->priority;
+		float masklimen			= flags & PART_FLAG_MASK ? reader.readU16() : init->masklimen;
+		float priority			= flags & PART_FLAG_PRIORITY ? reader.readU16() : init->priority;
 
 		//インスタンスアトリビュート
 		int		instanceValue_curKeyframe	= flags & PART_FLAG_INSTANCE_KEYFRAME ? reader.readS32() : init->instanceValue_curKeyframe;
@@ -3125,8 +3136,6 @@ void Player::draw()
 				if (sprite->refEffect)
 				{ 
 					//エフェクトパーツ
-					execMask(sprite);	//マスク初期化
-
 					sprite->refEffect->draw();
 					_draw_count = sprite->refEffect->getDrawSpriteCount();
 				}
@@ -3152,8 +3161,6 @@ void Player::draw()
 				{
 					if (sprite->_state.texture.handle != -1)
 					{
-						execMask(sprite);	//マスク初期化
-
 						SSDrawSprite(sprite);
 						_draw_count++;
 					}

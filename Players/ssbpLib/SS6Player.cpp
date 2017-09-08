@@ -1278,6 +1278,7 @@ Player::Player(void)
 	, _seedOffset(0)
 	,_maskFuncFlag(true)
 	,_maskParentSetting(true)
+	,_parentMatUse(false)					//プレイヤーが持つ継承されたマトリクスがあるか？
 {
 	int i;
 	for (i = 0; i < PART_VISIBLE_MAX; i++)
@@ -1287,6 +1288,8 @@ Player::Player(void)
 		_cellChange[i] = -1;
 	}
 	_state.init();
+
+	IdentityMatrix(_parentMat);
 }
 
 Player::~Player()
@@ -1803,12 +1806,12 @@ void Player::setPartsParentage()
 		{
 			//インスタンスパーツが設定されている
 			sprite->_ssplayer = ss::Player::create();
+			sprite->_ssplayer->setMaskFuncFlag(false);
+			sprite->_ssplayer->setMaskParentSetting(partData->maskInfluence);
+
 			sprite->_ssplayer->setData(_currentdataKey);
 			sprite->_ssplayer->play(refanimeName);				 // アニメーション名を指定(ssae名/アニメーション名も可能、詳しくは後述)
 			sprite->_ssplayer->animePause();
-
-			sprite->_ssplayer->setMaskFuncFlag(false);
-			sprite->_ssplayer->setMaskParentSetting(partData->maskInfluence);
 		}
 
 		//エフェクトパーツの生成
@@ -1950,7 +1953,6 @@ bool Player::getPartState(ResluteState& result, const char* name, int frameNo)
 					result.uv_scale_Y = sprite->_state.uv_scale_Y;					// SS6アトリビュート：UV Yスケール
 					result.boundingRadius = sprite->_state.boundingRadius;			// SS6アトリビュート：当たり半径
 					result.priority = sprite->_state.priority;						// SS6アトリビュート：優先度
-					result.boundingRadius = sprite->_state.boundingRadius;			// SS6アトリビュート：当たり半径
 					result.partsColorFunc = sprite->_state.partsColorFunc;			// SS6アトリビュート：カラーブレンドのブレンド方法
 					result.partsColorType = sprite->_state.partsColorType;			// SS6アトリビュート：カラーブレンドの単色か頂点カラーか。
 					result.flipX = sprite->_state.flipX;							// 横反転（親子関係計算済）
@@ -2250,7 +2252,7 @@ int Player::getDrawSpriteCount(void)
 
 void Player::setParentMatrix(float* mat, bool use )
 {
-	memcpy(_parentMat, mat, sizeof(float) * 16);	//表示にはローカルマトリクスを適用する
+	memcpy(_parentMat, mat, sizeof(float) * 16);	//
 	_parentMatUse = use;					//プレイヤーが持つ継承されたマトリクスがあるか？
 }
 

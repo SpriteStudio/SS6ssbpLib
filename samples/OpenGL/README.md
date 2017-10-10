@@ -6,7 +6,8 @@ Microsoft Visual Stadio Community 2017 ‚Å‹ó‚ÌƒRƒ“ƒ\[ƒ‹ƒvƒƒWƒFƒNƒg‚ðì¬‚µ‚Ü‚·
 
 ƒvƒƒWƒFƒNƒg‚Ömain.cppƒtƒ@ƒCƒ‹‚ÆASSPlayerƒtƒHƒ‹ƒ_AlibƒtƒHƒ‹ƒ_‚ðƒvƒƒWƒFƒNƒg‚É’Ç‰Á‚µ‚Ä‚­‚¾‚³‚¢B  
 ResourcesƒtƒHƒ‹ƒ_‚ðƒfƒoƒbƒO„ì‹ÆƒfƒBƒŒƒNƒgƒŠ‚ÉÝ’è‚µ‚½ƒtƒHƒ‹ƒ_‚ÉƒRƒs[‚µ‚Ä‚­‚¾‚³‚¢B  
+libƒtƒHƒ‹ƒ_‚ÍOpenGL‚ÅƒeƒNƒXƒ`ƒƒ‚ðì¬‚·‚éÛ‚É•K—v‚È‰æ‘œ“Ç‚Ýž‚Ýƒ‰ƒCƒuƒ‰ƒŠ‚Æ‚È‚èAOpenGLˆÈŠO‚Ì•`‰æ‚ðŽg—p‚·‚éÛ‚É‚Í•s—v‚É‚È‚é‰Â”\«‚ª‚ ‚è‚Ü‚·B  
 
-ssbp‚Æpng‚ª‚ ‚ê‚ÎÄ¶‚·‚éŽ–‚ª‚Å‚«‚Ü‚·‚ªAResourcesƒtƒHƒ‹ƒ_‚Ésspj‚àŠÜ‚Ü‚ê‚Ä‚¢‚Ü‚·B
+ssbp‚Æpng‚ª‚ ‚ê‚ÎÄ¶‚·‚éŽ–‚ª‚Å‚«‚Ü‚·‚ªAResourcesƒtƒHƒ‹ƒ_‚Ésspj‚àŠÜ‚Ü‚ê‚Ä‚¢‚Ü‚·B  
 
 

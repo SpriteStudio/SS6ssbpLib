@@ -15,10 +15,6 @@
 int nowtime = 0;	//経過時間
 int drawtime = 0;	//前回の時間
 
-// SSプレイヤー
-ss::Player *ssplayer;
-ss::ResourceManager *resman;
-
 //glutのコールバック関数
 void mouse(int button, int state, int x, int y);
 void keyboard(unsigned char key, int x, int y);
@@ -30,6 +26,18 @@ void Init();
 void update(float dt);
 void relese(void);
 void draw(void);
+
+// SSプレイヤー
+ss::Player *ssplayer;
+ss::ResourceManager *resman;
+
+//アプリケーションでの入力操作用
+bool nextanime = false;			//次のアニメを再生する
+bool forwardanime = false;		//前のアニメを再生する
+bool pauseanime = false;
+int playindex = 0;				//現在再生しているアニメのインデックス
+int playerstate = 0;
+std::vector<std::string> animename;	//アニメーション名のリスト
 
 
 //アプリケーションのメイン関数関数
@@ -72,6 +80,15 @@ void keyboard(unsigned char key, int x, int y)
 		relese();					//アプリケーション終了
 		exit(0);
 		break;
+	case 122:	//z
+		nextanime = true;
+		break;
+	case 120:	//x
+		forwardanime = true;
+		break;
+	case 99:	//c
+		pauseanime = true;
+		break;
 	default:
 		break;
 	}
@@ -88,7 +105,7 @@ void idle(void)
 	//FPSの設定
 	nowtime = glutGet(GLUT_ELAPSED_TIME);//経過時間を取得
 	int wait = nowtime - drawtime;
-	if (wait >= 16)
+	if (wait > 16)
 	{
 		update((float)wait / 1000.0f);
 		glutPostRedisplay();
@@ -151,11 +168,16 @@ void Init()
 	ssplayer->setData("character_template1");        // ssbpファイル名（拡張子不要）
 	//再生するモーションを設定
 	ssplayer->play("character_template_3head/stance");				 // アニメーション名を指定(ssae名/アニメーション名も可能、詳しくは後述)
+//	ssplayer->play("character_template_2head/jump_air");				 // アニメーション名を指定(ssae名/アニメーション名も可能、詳しくは後述)
 
 
 	//表示位置を設定
 	ssplayer->setPosition(WIDTH / 2, HEIGHT / 2);
 	ssplayer->setScale(0.5f, 0.5f);
+
+	//ssbpに含まれているアニメーション名のリストを取得する
+	animename = resman->getAnimeName("character_template1");
+	playindex = 0;				//現在再生しているアニメのインデックス
 }
 
 //アプリケーション更新
@@ -163,6 +185,43 @@ void update(float dt)
 {
 	//プレイヤーの更新、引数は前回の更新処理から経過した時間
 	ssplayer->update(dt);
+
+	if (nextanime == true)
+	{
+		playindex++;
+		if (playindex >= animename.size())
+		{
+			playindex = 0;
+		}
+		std::string name = animename.at(playindex);
+		ssplayer->play(name);
+		nextanime = false;
+	}
+	if (forwardanime == true)
+	{
+		playindex--;
+		if ( playindex < 0 )
+		{
+			playindex = animename.size() - 1;
+		}
+		std::string name = animename.at(playindex);
+		ssplayer->play(name);
+		forwardanime = false;
+	}
+	if (pauseanime == true)
+	{
+		if (playerstate == 0)
+		{
+			ssplayer->animePause();
+			playerstate = 1;
+		}
+		else
+		{
+			ssplayer->animeResume();
+			playerstate = 0;
+		}
+		pauseanime = false;
+	}
 }
 
 //アプリケーション描画

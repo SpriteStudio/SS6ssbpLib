@@ -1064,6 +1064,11 @@ std::vector<std::string> ResourceManager::getAnimeName(const std::string& dataKe
 			continue;
 		}
 		animename.push_back(strKey);
+		itpairstri++;
+		if (itpairstri == rs->animeCache->_dic.end())
+		{
+			break;
+		}
 	}
 	return animename;
 }
@@ -1632,7 +1637,7 @@ void Player::updateFrame(float dt)
 	{ 
 		endFrame = _endFrameOverWrite;
 	}
-	SS_ASSERT2(startFrame < endFrame, "Playframe is out of range.");
+	SS_ASSERT2(startFrame <= endFrame, "Playframe is out of range.");
 
 	bool playEnd = false;
 	bool toNextFrame = _isPlaying && !_isPausing;

@@ -8,6 +8,11 @@
 #include "common/loader/sstypes.h"
 #include <stdio.h>
 #include <string>
+#include <Windows.h>
+#include <stddef.h>
+
+#include <GL/glew.h>
+#include "../lib/SSTextureGL.h"
 
 namespace ss
 {
@@ -16,11 +21,16 @@ namespace ss
 	class Player;
 	class CustomSprite;
 
+	extern void SSPlatformInit(void);
+	extern void SSPlatformRelese(void);
+	extern void SSSetPlusDirection(int direction, int window_w, int window_h);
+	extern void SSGetPlusDirection(int &direction, int &window_w, int &window_h);
 	extern unsigned char* SSFileOpen(const char* pszFileName, const char* pszMode, unsigned long * pSize);
 	extern long SSTextureLoad(const char* pszFileName, SsTexWrapMode::_enum  wrapmode, SsTexFilterMode::_enum filtermode);
 	extern bool SSTextureRelese(long handle);
 	extern bool isAbsolutePath(const std::string& strPath);
-	extern void SSDrawSprite(CustomSprite *sprite);
+	extern void SSRenderSetup(void);
+	extern void SSDrawSprite(CustomSprite *sprite, State *overwrite_state = NULL);
 	extern bool SSGetTextureSize(long handle, int &w, int &h);
 	extern void SSonUserData(Player *player, UserData *userData);
 	extern void SSPlayEnd(Player *player);

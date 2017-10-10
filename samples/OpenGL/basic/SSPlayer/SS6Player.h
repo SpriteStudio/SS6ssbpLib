@@ -434,7 +434,15 @@ public:
 /**
  * ResourceManager
  */
-//class ResourceManager : public Ref
+//正方向の指定
+//SSSetPlusDirectionの初期化に使用します。
+//プレイヤー内部ではSpriteStudioに準拠し上を正方向として処理します。
+//使用するプラットフォームのY座標系が下が正方向の場合にPLUS_DOWNを指定して初期化してください。
+enum {
+	PLUS_UP,	//上が正方向
+	PLUS_DOWN	//下が正方向
+};
+
 class ResourceManager
 {
 public:
@@ -495,6 +503,11 @@ public:
 	*/
 	ResourceSet* getData(const std::string& dataKey);
 
+	/**
+	* ssbpに含まれるアニメーション名を取得します.
+	*/
+	std::vector<std::string> getAnimeName(const std::string& dataKey);
+		
 	/**
 	* 指定したセルのテクスチャを変更します.
 	* @param  ssbpName       ssbp名（拡張子を除くファイル名）
@@ -704,7 +717,8 @@ enum {
 /**
 * 頂点変形フラグ
 */
-enum {
+enum VertexFlag 
+{
 	VERTEX_FLAG_LT = 1 << 0,
 	VERTEX_FLAG_RT = 1 << 1,
 	VERTEX_FLAG_LB = 1 << 2,
@@ -715,7 +729,8 @@ enum {
 /**
 * インスタンスループ設定フラグ
 */
-enum {
+enum InstanceLoopFlag  
+{
 	INSTANCE_LOOP_FLAG_INFINITY = 1 << 0,		//
 	INSTANCE_LOOP_FLAG_REVERSE = 1 << 1,
 	INSTANCE_LOOP_FLAG_PINGPONG = 1 << 2,
@@ -723,14 +738,15 @@ enum {
 };
 
 //エフェクトアトリビュートのループフラグ
-enum {
+enum EffectLoopFlag  
+{
 	EFFECT_LOOP_FLAG_INDEPENDENT = 1 << 0,
 };
 
 /**
 * Animation Part Type
 */
-enum
+enum PartsType
 {
 	PARTTYPE_INVALID = -1,
 	PARTTYPE_NULL,			/// null。領域を持たずSRT情報のみ。ただし円形の当たり判定は設定可能。
@@ -751,7 +767,7 @@ enum
 /*
 * 当たり判定の種類
 */
-enum
+enum CollisionType
 {
 	INVALID = -1,
 	NONE,			///< 当たり判定として使わない。
@@ -989,6 +1005,13 @@ public:
 	* @return 総フレーム
 	*/
 	int getTotalFrame() const;
+
+	/**
+	* FPSを取得します.
+	*
+	* @return アニメーションに設定されたFPS
+	*/
+	int getFPS() const;
 
 	/**
 	 * 再生フレームNoを取得します.
@@ -1309,6 +1332,10 @@ protected:
 	bool				_maskParentSetting;				//親パーツのマスク対象（インスタンスのみ使用する）
 
 	std::vector<CustomSprite *> _maskIndexList;			//マスク対象となるパーツ
+
+	int _direction;										//プレイヤーの座標系設定
+	int _window_w;
+	int _window_h;
 };
 
 

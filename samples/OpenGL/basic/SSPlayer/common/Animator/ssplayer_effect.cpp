@@ -466,11 +466,19 @@ void	SsEffectRenderParticle::update(float delta)
 //------------------------------------------------------------------------------
 void	SsEffectRenderParticle::updateDelta(float delta)
 {
-#ifdef UP_MINUS
-	_rotation -= (_rotationAdd*delta);
-#else
-	_rotation += (_rotationAdd*delta);
-#endif
+	int updir;
+	int window_w;
+	int window_h;
+	SSGetPlusDirection(updir, window_w, window_h);
+
+	if (updir == PLUS_DOWN)
+	{
+		_rotation -= (_rotationAdd*delta);
+	}
+	else
+	{
+		_rotation += (_rotationAdd*delta);
+	}
 
 	_exsitTime+=delta;
 	_life = _lifetime - _exsitTime;
@@ -503,6 +511,10 @@ void	SsEffectRenderParticle::updateDelta(float delta)
 //------------------------------------------------------------------------------
 void 	SsEffectRenderParticle::updateForce(float delta)
 {
+	int updir;
+	int window_w;
+	int window_h;
+	SSGetPlusDirection(updir, window_w, window_h);
 
 	this->_backposition = this->_position;
 
@@ -512,11 +524,14 @@ void 	SsEffectRenderParticle::updateForce(float delta)
 
 	if ( isTurnDirection )
 	{
-#ifdef UP_MINUS
-		this->direction = -SsPoint2::get_angle_360(SsVector2(1.0f, 0.0f), ff) + (float)DegreeToRadian(90);	//上がマイナスの場合
-#else
-		this->direction =  SsPoint2::get_angle_360( SsVector2( 1.0f , 0.0f ) , ff ) - (float)DegreeToRadian(90);
-#endif
+		if (updir == PLUS_DOWN)
+		{
+			this->direction = -SsPoint2::get_angle_360(SsVector2(1.0f, 0.0f), ff) + (float)DegreeToRadian(90);	//上がマイナスの場合
+		}
+		else
+		{
+			this->direction = SsPoint2::get_angle_360(SsVector2(1.0f, 0.0f), ff) - (float)DegreeToRadian(90);
+		}
 	}
 	else{
         this->direction = 0;
@@ -534,32 +549,40 @@ void 	SsEffectRenderParticle::updateForce(float delta)
 void	SsEffectRenderParticle::draw(SsEffectRenderer* render)
 {
 
-	if ( this->parentEmitter == NULL  )return;
-	if ( refBehavior == NULL ) return;
+	if (this->parentEmitter == NULL)return;
+	if (refBehavior == NULL) return;
 	if (dispCell->refCell.cellIndex == -1) return;
 
 	float		matrix[4 * 4];	///< 行列
-	IdentityMatrix( matrix );
+	IdentityMatrix(matrix);
 
 
 	if (render->parentState)
 	{
-		memcpy( matrix , render->parentState->matrix , sizeof( float ) * 16 );
+		memcpy(matrix, render->parentState->matrix, sizeof(float) * 16);
 		this->alpha = render->render_root->alpha;
 	}
 
-#ifdef UP_MINUS
-	TranslationMatrixM(matrix, _position.x, -_position.y, 0.0f);	//上がマイナスなので反転する
-#else
-	TranslationMatrixM(matrix, _position.x, _position.y, 0.0f);
-#endif
+	int updir;
+	int window_w;
+	int window_h;
+	SSGetPlusDirection(updir, window_w, window_h);
 
-	RotationXYZMatrixM( matrix , 0 , 0 , DegreeToRadian(_rotation)+direction);
+	if (updir == PLUS_DOWN)
+	{
+		TranslationMatrixM(matrix, _position.x, -_position.y, 0.0f);	//上がマイナスなので反転する
+	}
+	else
+	{
+		TranslationMatrixM(matrix, _position.x, _position.y, 0.0f);
+	}
 
-    ScaleMatrixM(  matrix , _size.x, _size.y, 1.0f );
+	RotationXYZMatrixM(matrix, 0, 0, DegreeToRadian(_rotation) + direction);
+
+	ScaleMatrixM(matrix, _size.x, _size.y, 1.0f);
 
 	SsFColor fcolor;
-	fcolor.fromARGB( _color.toARGB() );
+	fcolor.fromARGB(_color.toARGB());
 	fcolor.a = fcolor.a * this->alpha;
 	if (fcolor.a == 0.0f)
 	{
@@ -580,25 +603,28 @@ void	SsEffectRenderParticle::draw(SsEffectRenderer* render)
 	float x2 = width_h;
 	float y2 = height_h;
 
-#ifdef UP_MINUS
-	state.quad.tl.vertices.x = x1;
-	state.quad.tl.vertices.y = y1;
-	state.quad.tr.vertices.x = x2;
-	state.quad.tr.vertices.y = y1;
-	state.quad.bl.vertices.x = x1;
-	state.quad.bl.vertices.y = y2;
-	state.quad.br.vertices.x = x2;
-	state.quad.br.vertices.y = y2;
-#else
-	state.quad.tl.vertices.x = x1;
-	state.quad.tl.vertices.y = y2;
-	state.quad.tr.vertices.x = x2;
-	state.quad.tr.vertices.y = y2;
-	state.quad.bl.vertices.x = x1;
-	state.quad.bl.vertices.y = y1;
-	state.quad.br.vertices.x = x2;
-	state.quad.br.vertices.y = y1;
-#endif
+	if (updir == PLUS_DOWN)
+	{
+		state.quad.tl.vertices.x = x1;
+		state.quad.tl.vertices.y = y1;
+		state.quad.tr.vertices.x = x2;
+		state.quad.tr.vertices.y = y1;
+		state.quad.bl.vertices.x = x1;
+		state.quad.bl.vertices.y = y2;
+		state.quad.br.vertices.x = x2;
+		state.quad.br.vertices.y = y2;
+	}
+	else
+	{
+		state.quad.tl.vertices.x = x1;
+		state.quad.tl.vertices.y = y2;
+		state.quad.tr.vertices.x = x2;
+		state.quad.tr.vertices.y = y2;
+		state.quad.bl.vertices.x = x1;
+		state.quad.bl.vertices.y = y1;
+		state.quad.br.vertices.x = x2;
+		state.quad.br.vertices.y = y1;
+	}
 
 	//UVを設定する
 	int atlasWidth = state.texture.size_w;
@@ -627,7 +653,7 @@ void	SsEffectRenderParticle::draw(SsEffectRenderer* render)
 	{
 		state.blendfunc = BLEND_ADD;	//ブレンドタイプを設定
 	}
-//	state.flags = PART_FLAG_COLOR_BLEND;		//カラーブレンドフラグを設定
+	//	state.flags = PART_FLAG_COLOR_BLEND;		//カラーブレンドフラグを設定
 	state.partsColorFunc = BLEND_MUL;			//カラーブレンドフラグ乗算
 	int r = (int)(fcolor.r * 255.0f);			//カラー値を設定
 	int g = (int)(fcolor.g * 255.0f);
@@ -653,11 +679,15 @@ void	SsEffectRenderParticle::draw(SsEffectRenderer* render)
 	float px = 0;
 	float py = 0;
 	float cx = ((state.rect.size.width * state.scaleX) * -(dispCell->refCell.pivot_X));
-#ifdef UP_MINUS
-	float cy = ((state.rect.size.height * state.scaleY) * -(dispCell->refCell.pivot_Y));
-#else
-	float cy = ((state.rect.size.height * state.scaleY) * +(dispCell->refCell.pivot_Y));
-#endif
+	float cy;
+	if (updir == PLUS_DOWN)
+	{
+		cy = ((state.rect.size.height * state.scaleY) * -(dispCell->refCell.pivot_Y));
+	}
+	else
+	{
+		cy = ((state.rect.size.height * state.scaleY) * +(dispCell->refCell.pivot_Y));
+	}
 	get_uv_rotation(&cx, &cy, 0, 0, state.rotationZ);
 
 	state.mat[12] += cx;

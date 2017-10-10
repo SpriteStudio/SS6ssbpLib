@@ -965,6 +965,8 @@ protected:
 	}
 
 protected:
+
+public:
 	std::map<std::string, AnimeRef*>	_dic;
 };
 
@@ -1044,6 +1046,26 @@ ResourceSet* ResourceManager::getData(const std::string& dataKey)
 {
 	ResourceSet* rs = _dataDic.at(dataKey);
 	return rs;
+}
+
+std::vector<std::string> ResourceManager::getAnimeName(const std::string& dataKey)
+{
+	std::vector<std::string> animename;
+	ResourceSet* rs = _dataDic.at(dataKey);
+	//アニメーション名を取得してリストを返す
+	std::map<std::string, ss::AnimeRef*>::iterator itpairstri = rs->animeCache->_dic.begin();
+	while (1)
+	{
+		// イテレータは pair<const string, int> 型なので、
+		std::string strKey = itpairstri->first;     // イテレータからキーが得られる。
+
+		if (strKey.find("/") == std::string::npos)	//ssae名が含まれていない場合はスキップ
+		{
+			continue;
+		}
+		animename.push_back(strKey);
+	}
+	return animename;
 }
 
 std::string ResourceManager::addData(const std::string& dataKey, const ProjectData* data, const std::string& imageBaseDir)
@@ -1248,6 +1270,7 @@ int ResourceManager::getTotalFrame(std::string ssbpName, std::string animeName)
 	return(rc);
 }
 
+
 /**
  * Player
  */
@@ -1369,6 +1392,19 @@ int Player::getTotalFrame() const
 	if (_currentAnimeRef)
 	{
 		return(_currentAnimeRef->animationData->totalFrames);
+	}
+	else
+	{
+		return(0);
+	}
+
+}
+
+int Player::getFPS() const
+{
+	if (_currentAnimeRef)
+	{
+		return(_currentAnimeRef->animationData->fps);
 	}
 	else
 	{
@@ -1509,6 +1545,8 @@ void Player::play(AnimeRef* animeRef, int loop, int startFrameNo)
 	_animefps = _currentAnimeRef->animationData->fps;
 	setStartFrame(-1);
 	setEndFrame(-1);
+
+	SSGetPlusDirection(_direction, _window_w, _window_h);
 
 	setFrame((int)_playingFrame);
 }
@@ -2305,12 +2343,26 @@ void Player::setFrame(int frameNo, float dt)
 		int cellIndex			= flags & PART_FLAG_CELL_INDEX ? reader.readS16() : init->cellIndex;
 		float x					= flags & PART_FLAG_POSITION_X ? reader.readFloat() : init->positionX;
 		float y					= flags & PART_FLAG_POSITION_Y ? reader.readFloat() : init->positionY;
+		if (_direction == PLUS_DOWN)	//Y座標反転
+		{
+			y = -y;
+		}
 		float z					= flags & PART_FLAG_POSITION_Z ? reader.readFloat() : init->positionZ;
 		float pivotX			= flags & PART_FLAG_PIVOT_X ? reader.readFloat() : init->pivotX;
 		float pivotY			= flags & PART_FLAG_PIVOT_Y ? reader.readFloat() : init->pivotY;
+		if (_direction == PLUS_DOWN)	//Y座標反転
+		{
+			pivotY = -pivotY;
+		}
 		float rotationX			= flags & PART_FLAG_ROTATIONX ? reader.readFloat() : init->rotationX;
 		float rotationY			= flags & PART_FLAG_ROTATIONY ? reader.readFloat() : init->rotationY;
 		float rotationZ			= flags & PART_FLAG_ROTATIONZ ? reader.readFloat() : init->rotationZ;
+		if (_direction == PLUS_DOWN)	//Y座標反転
+		{
+			rotationX = -rotationX;
+			rotationY = -rotationY;
+			rotationZ = -rotationZ;
+		}
 		float scaleX			= flags & PART_FLAG_SCALE_X ? reader.readFloat() : init->scaleX;
 		float scaleY			= flags & PART_FLAG_SCALE_Y ? reader.readFloat() : init->scaleY;
 		float localscaleX		= flags & PART_FLAG_LOCALSCALE_X ? reader.readFloat() : init->localscaleX;
@@ -2382,6 +2434,11 @@ void Player::setFrame(int frameNo, float dt)
 			if (flipX) cpx = -cpx;	// 水平フリップによって原点を入れ替える
 			cpy = cellRef->cell->pivot_Y;
 			if (flipY) cpy = -cpy;	// 垂直フリップによって原点を入れ替える
+
+			if (_direction == PLUS_DOWN)	//Y座標反転
+			{
+				cpy = -cpy;
+			}
 
 			pivotX += cpx;
 			pivotY += cpy;
@@ -2507,6 +2564,17 @@ void Player::setFrame(int frameNo, float dt)
 			quad.bl.vertices.y = y1;
 			quad.br.vertices.x = x2;
 			quad.br.vertices.y = y1;
+			if (_direction == PLUS_DOWN)	//Y座標反転
+			{
+				quad.tl.vertices.x = x1;
+				quad.tl.vertices.y = y1;
+				quad.tr.vertices.x = x2;
+				quad.tr.vertices.y = y1;
+				quad.bl.vertices.x = x1;
+				quad.bl.vertices.y = y2;
+				quad.br.vertices.x = x2;
+				quad.br.vertices.y = y2;
+			}
 
 			//UVを設定する
 			quad.tl.texCoords.u = 0;
@@ -2611,8 +2679,8 @@ void Player::setFrame(int frameNo, float dt)
 			int funcNo = typeAndFlags & 0xff;
 			int cb_flags = (typeAndFlags >> 8) & 0xff;
 
-			sprite->_state.partsColorFunc = funcNo;
-			sprite->_state.partsColorType = cb_flags;
+			state.partsColorFunc = funcNo;
+			state.partsColorType = cb_flags;
 
 			//制限となります。
 			if (cb_flags & VERTEX_FLAG_ONE)
@@ -3096,6 +3164,8 @@ void Player::draw()
 	_draw_count = 0;
 
 	if (!_currentAnimeRef) return;
+
+	SSRenderSetup();
 
 	ToPointer ptr(_currentRs->data);
 	const AnimePackData* packData = _currentAnimeRef->animePackData;

@@ -16,7 +16,7 @@ https://github.com/SpriteStudio/SpriteStudio6-SDK
 
 - Quick start
  
-  #include "SS6Player.h"
+  #include "./SSPlayer/SS6Player.h"
 
   
   // SS6プレイヤーの宣言
@@ -24,8 +24,19 @@ https://github.com/SpriteStudio/SpriteStudio6-SDK
   ss::ResourceManager *resman;
 
 
+  //プレイヤーを使用する前の初期化処理
+  //この処理はアプリケーションの初期化で１度だけ行ってください。
+  ss::SSPlatformInit();
+  //Y方向の設定とウィンドウサイズ設定を行います
+  ss::SSSetPlusDirection(ss::PLUS_UP, WIDTH, HEIGHT);
   //リソースマネージャの作成
   resman = ss::ResourceManager::getInstance();
+
+  //リソースマネージャの作成
+  resman = ss::ResourceManager::getInstance();
+  //プレイヤーを使用する前の初期化処理ここまで
+
+
   //プレイヤーの作成
   ssplayer = ss::Player::create();
 
@@ -59,11 +70,12 @@ https://github.com/SpriteStudio/SpriteStudio6-SDK
   //SS5Playerの削除
   delete (ssplayer);
   delete (resman);
+  ss::SSPlatformRelese( );
 
   使用するアニメーションに合わせて Playerクラス定義部分にある設定用定数を変更してください。
 
   ssbpLibの制限についてはこちらのページを参照してください。
-  https://github.com/SpriteStudio/ssbpLib/wiki
+  https://github.com/SpriteStudio/SS6ssbpLib/wiki
 
   使用方法についてはPlayerクラスのコメントを参照してください。
 

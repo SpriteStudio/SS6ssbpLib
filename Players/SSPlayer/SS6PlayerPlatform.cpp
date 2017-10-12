@@ -97,7 +97,7 @@ namespace ss
 	/**
 	* テクスチャの読み込み
 	*/
-	long SSTextureLoad(const char* pszFileName, SsTexWrapMode::_enum  wrapmode, SsTexFilterMode::_enum filtermode)
+	long SSTextureLoad(const char* pszFileName, int  wrapmode, int filtermode)
 	{
 		/**
 		* テクスチャ管理用のユニークな値を返してください。
@@ -372,6 +372,11 @@ namespace ss
 		{
 			state = sprite->_state;
 		}
+		int tex_index = state.texture.handle;
+		if (texture[tex_index] == nullptr)
+		{
+			return;
+		}
 
 		execMask(sprite);	//マスク初期化
 
@@ -429,8 +434,6 @@ namespace ss
 		quad.br.colors.a = quad.br.colors.a * alpha;
 
 		//テクスチャ有効
-		int tex_index = state.texture.handle;
-
 		int	gl_target = GL_TEXTURE_RECTANGLE_ARB;
 		if (texture[tex_index]->texture_is_pow2 == true)
 		{

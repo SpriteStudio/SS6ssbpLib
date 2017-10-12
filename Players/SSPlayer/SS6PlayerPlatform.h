@@ -26,7 +26,7 @@ namespace ss
 	extern void SSSetPlusDirection(int direction, int window_w, int window_h);
 	extern void SSGetPlusDirection(int &direction, int &window_w, int &window_h);
 	extern unsigned char* SSFileOpen(const char* pszFileName, const char* pszMode, unsigned long * pSize);
-	extern long SSTextureLoad(const char* pszFileName, SsTexWrapMode::_enum  wrapmode, SsTexFilterMode::_enum filtermode);
+	extern long SSTextureLoad(const char* pszFileName, int  wrapmode, int filtermode);
 	extern bool SSTextureRelese(long handle);
 	extern bool isAbsolutePath(const std::string& strPath);
 	extern void SSRenderSetup(void);

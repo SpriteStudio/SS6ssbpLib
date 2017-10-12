@@ -32,8 +32,6 @@ https://github.com/SpriteStudio/SpriteStudio6-SDK
   //リソースマネージャの作成
   resman = ss::ResourceManager::getInstance();
 
-  //リソースマネージャの作成
-  resman = ss::ResourceManager::getInstance();
   //プレイヤーを使用する前の初期化処理ここまで
 
 
@@ -42,7 +40,7 @@ https://github.com/SpriteStudio/SpriteStudio6-SDK
 
   //アニメデータをリソースに追加
   //それぞれのプラットフォームに合わせたパスへ変更してください。
-  resman->addData("character_template_comipo\\character_template1.ssbp");
+  resman->addData("character_template_comipo/character_template1.ssbp");
   //プレイヤーにリソースを割り当て
   ssplayer->setData("character_template1");					// ssbpファイル名（拡張子不要）
   //再生するモーションを設定
@@ -81,8 +79,8 @@ https://github.com/SpriteStudio/SpriteStudio6-SDK
 
 *************************************************************/
 
-#ifndef SS5Player_h
-#define SS5Player_h
+#ifndef SSPlayer_h
+#define SSPlayer_h
 
 #include "SS6PlayerData.h"
 #include "SS6PlayerTypes.h"
@@ -559,6 +557,14 @@ public:
 	* @return アニメーションの総フレーム（存在しない場合はアサート）
 	*/
 	int getTotalFrame(std::string ssbpName, std::string animeName);
+
+	/**
+	* 名前が登録されていればtrueを返します
+	*
+	* @param dataKey
+	* @return
+	*/
+	bool isDataKeyExists(const std::string& dataKey);
 
 	/**
 	 * 新たなResourceManagerインスタンスを構築します.

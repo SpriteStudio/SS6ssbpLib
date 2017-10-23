@@ -27,6 +27,9 @@ void update(float dt);
 void relese(void);
 void draw(void);
 
+void userDataCallback(ss::Player* player, const ss::UserData* data);
+void playEndCallback(ss::Player* player);
+
 // SSプレイヤー
 ss::Player *ssplayer;
 ss::ResourceManager *resman;
@@ -175,6 +178,12 @@ void Init()
 	ssplayer->setPosition(WIDTH / 2, HEIGHT / 2);
 	ssplayer->setScale(0.5f, 0.5f);
 
+	//ユーザーデータコールバックを設定
+	ssplayer->setUserDataCallback(userDataCallback);
+
+	//アニメーション終了コールバックを設定
+	ssplayer->setPlayEndCallback(playEndCallback);
+
 	//ssbpに含まれているアニメーション名のリストを取得する
 	animename = resman->getAnimeName("character_template1");
 	playindex = 0;				//現在再生しているアニメのインデックス
@@ -222,6 +231,34 @@ void update(float dt)
 		}
 		pauseanime = false;
 	}
+}
+
+//ユーザーデータコールバック
+void userDataCallback(ss::Player* player, const ss::UserData* data)
+{
+	//再生したフレームにユーザーデータが設定されている場合呼び出されます。
+	//プレイヤーを判定する場合、ゲーム側で管理しているss::Playerのアドレスと比較して判定してください。
+	/*
+	//コールバック内でパーツのステータスを取得したい場合は、この時点ではアニメが更新されていないため、
+	//getPartState　に　data->frameNo　でフレーム数を指定して取得してください。
+	ss::ResluteState result;
+	//再生しているモーションに含まれるパーツ名「collision」のステータスを取得します。
+	ssplayer->getPartState(result, "collision", data->frameNo);
+	*/
+
+}
+
+//アニメーション終了コールバック
+void playEndCallback(ss::Player* player)
+{
+	//再生したアニメーションが終了した段階で呼び出されます。
+	//プレイヤーを判定する場合、ゲーム側で管理しているss::Playerのアドレスと比較して判定してください。
+	//player->getPlayAnimeName();
+	//を使用する事で再生しているアニメーション名を取得する事もできます。
+
+	//ループ回数分再生した後に呼び出される点に注意してください。
+	//無限ループで再生している場合はコールバックが発生しません。
+
 }
 
 //アプリケーション描画

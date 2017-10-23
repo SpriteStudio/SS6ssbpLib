@@ -232,6 +232,31 @@ namespace ss
 		return true;
 	}
 
+	/**
+	* 描画ステータス
+	*/
+	struct SSDrawState
+	{
+		int texture;
+		int partType;
+		int partBlendfunc;
+		int partsColorUse;
+		int partsColorFunc;
+		int partsColorType;
+		int maskInfluence;
+		void init(void)
+		{
+			texture = -1;
+			partType = -1;
+			partBlendfunc = -1;
+			partsColorUse = -1;
+			partsColorFunc = -1;
+			partsColorType = -1;
+			maskInfluence = -1;
+		}
+	};
+	SSDrawState _ssDrawState;
+
 	//各プレイヤーの描画を行う前の初期化処理
 	void SSRenderSetup( void )
 	{
@@ -253,8 +278,19 @@ namespace ss
 
 //		glOrtho(0.0, _window_w, _window_h, 0.0, -1.0, 1.0);	//並行投影変換
 		glOrtho(0.0, _window_w, 0.0, _window_h , -1.0, 1.0);	//並行投影変換
+
+		_ssDrawState.init();
 	}
 
+	void SSRenderEnd(void)
+	{
+		glDisable(GL_TEXTURE_RECTANGLE_ARB);
+		glDisable(GL_TEXTURE_2D);
+		glDisable(GL_ALPHA_TEST);
+		//ブレンドモード　減算時の設定を戻す
+		glBlendEquation(GL_FUNC_ADD);
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+	}
 	/**
 	パーツカラー用
 	ブレンドタイプに応じたテクスチャコンバイナの設定を行う
@@ -262,10 +298,10 @@ namespace ss
 	ミックスのみコンスタント値を使う。
 	他は事前に頂点カラーに対してブレンド率を掛けておく事でαも含めてブレンドに対応している。
 	*/
-	void setupPartsColorTextureCombiner(BlendType blendType, VertexFlag colorBlendTarget)
+	void setupPartsColorTextureCombiner(BlendType blendType, VertexFlag colorBlendTarget, SSPARTCOLOR_RATE rate)
 	{
 		//static const float oneColor[4] = {1.f,1.f,1.f,1.f};
-		float constColor[4] = { 0.5f,0.5f,0.5f,1.0f };
+		float constColor[4] = { 0.5f,0.5f,0.5f,rate.oneRate };
 		static const GLuint funcs[] = { GL_INTERPOLATE, GL_MODULATE, GL_ADD, GL_SUBTRACT };
 		GLuint func = funcs[(int)blendType];
 		GLuint srcRGB = GL_TEXTURE0;
@@ -439,69 +475,83 @@ namespace ss
 		{
 			gl_target = GL_TEXTURE_2D;
 		}
-		glEnable(gl_target);
 
-		//テクスチャのバインド
-		glBindTexture(gl_target, texture[tex_index]->tex);
+		if (_ssDrawState.texture != texture[tex_index]->tex)
+		{
+			glEnable(gl_target);
+			//テクスチャのバインド
+			glBindTexture(gl_target, texture[tex_index]->tex);
+		}
+
 
 		//描画モード
 		//
-		glBlendEquation(GL_FUNC_ADD);
-		switch (state.blendfunc)
+		if (_ssDrawState.partBlendfunc != state.blendfunc)
 		{
-		case BLEND_MIX:		///< 0 ブレンド（ミックス）
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-			break;
-		case BLEND_MUL:		///< 1 乗算
-			glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-			break;
-		case BLEND_ADD:		///< 2 加算
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-			break;
-		case BLEND_SUB:		///< 3 減算
-			glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-			glBlendFuncSeparateEXT(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_DST_ALPHA);
-			glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);//とりあえずミックスにしておく
-			break;
-		case BLEND_MULALPHA:	///< 4 α乗算
-			glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
-			break;
-		case BLEND_SCREEN:		///< 5 スクリーン
-			glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE);
-			break;
-		case BLEND_EXCLUSION:	///< 6 除外
-			glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR);
-			break;
-		case BLEND_INVERT:		///< 7 反転
-			glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO);
-			break;
+			glBlendEquation(GL_FUNC_ADD);
+			switch (state.blendfunc)
+			{
+			case BLEND_MIX:		///< 0 ブレンド（ミックス）
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+				break;
+			case BLEND_MUL:		///< 1 乗算
+				glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+				break;
+			case BLEND_ADD:		///< 2 加算
+				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+				break;
+			case BLEND_SUB:		///< 3 減算
+				glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+				glBlendFuncSeparateEXT(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_DST_ALPHA);
+				break;
+			case BLEND_MULALPHA:	///< 4 α乗算
+				glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
+				break;
+			case BLEND_SCREEN:		///< 5 スクリーン
+				glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE);
+				break;
+			case BLEND_EXCLUSION:	///< 6 除外
+				glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR);
+				break;
+			case BLEND_INVERT:		///< 7 反転
+				glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO);
+				break;
 
+			}
 		}
 
 		//メッシュの場合描画
 		if (sprite->_partData.type == PARTTYPE_MESH)
 		{
-			//			this->renderMesh(state->meshPart, alpha);
+//			renderMesh(state->meshPart, alpha);
 			return;
 		}
 
-		if (state.flags & PART_FLAG_PARTS_COLOR)
+		bool ispartColor = (state.flags & PART_FLAG_PARTS_COLOR);
+		if (
+			   (_ssDrawState.partsColorFunc != state.partsColorFunc)
+			|| (_ssDrawState.partsColorType != state.partsColorType)
+			|| (_ssDrawState.partsColorUse != ispartColor)
+			)
 		{
-			//パーツカラーの反映
-			setupPartsColorTextureCombiner((BlendType)sprite->_state.partsColorFunc, (VertexFlag)sprite->_state.partsColorType);
-		}
-		else
-		{
-			// カラーは１００％テクスチャ
-			glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE0);
-			// αだけ合成
-			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE0);
-			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
-			glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
-			glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+			if (state.flags & PART_FLAG_PARTS_COLOR)
+			{
+				//パーツカラーの反映
+				setupPartsColorTextureCombiner((BlendType)state.partsColorFunc, (VertexFlag)state.partsColorType, state.rate);
+			}
+			else
+			{
+				// カラーは１００％テクスチャ
+				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE0);
+				// αだけ合成
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE0);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
+				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
+				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+			}
 		}
 
 		float	uvs[10];			// UVバッファ
@@ -526,13 +576,23 @@ namespace ss
 		// 頂点配列を描画
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
 
+		//レンダリングステートの保存
+		_ssDrawState.texture = texture[tex_index]->tex;
+		_ssDrawState.partType = sprite->_partData.type;
+		_ssDrawState.partBlendfunc = state.blendfunc;
+		_ssDrawState.partsColorFunc = state.partsColorFunc;
+		_ssDrawState.partsColorType = state.partsColorType;
+		_ssDrawState.partsColorUse = (int)ispartColor;
+		_ssDrawState.maskInfluence = (int)sprite->_maskInfluence;
 //
+/*
 		glDisable(gl_target);
 		glDisable(GL_TEXTURE_2D);
 		glDisable(GL_ALPHA_TEST);
 		//ブレンドモード　減算時の設定を戻す
 		glBlendEquation(GL_FUNC_ADD);
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+*/
 }
 
 
@@ -553,69 +613,59 @@ namespace ss
 			glDisable(GL_STENCIL_TEST);
 			glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
 		}
+		_ssDrawState.maskInfluence = -1;		//マスクを実行する
+		_ssDrawState.partType = -1;		//マスクを実行する
 	}
 
 	void execMask(CustomSprite *sprite)
 	{
-		glEnable(GL_STENCIL_TEST);
-		if (sprite->_partData.type == PARTTYPE_MASK)
+		if (
+			 (_ssDrawState.partType != sprite->_partData.type)
+		  || (_ssDrawState.maskInfluence != (int)sprite->_maskInfluence)
+		   )
 		{
+			glEnable(GL_STENCIL_TEST);
+			if (sprite->_partData.type == PARTTYPE_MASK)
+			{
 
-			glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
+				glColorMask(GL_FALSE, GL_FALSE, GL_FALSE, GL_FALSE);
 
-			if (!(sprite->_maskInfluence)) { //マスクが有効では無い＝重ね合わせる
-				glStencilFunc(GL_ALWAYS, 1, ~0);  //常に通過
-				glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
-				//描画部分を1へ
+				if (!(sprite->_maskInfluence)) { //マスクが有効では無い＝重ね合わせる
+					glStencilFunc(GL_ALWAYS, 1, ~0);  //常に通過
+					glStencilOp(GL_KEEP, GL_KEEP, GL_REPLACE);
+					//描画部分を1へ
+				}
+				else {
+					glStencilFunc(GL_ALWAYS, 1, ~0);  //常に通過
+					glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+				}
+
+				glEnable(GL_ALPHA_TEST);
+
 			}
 			else {
-				glStencilFunc(GL_ALWAYS, 1, ~0);  //常に通過
-				glStencilOp(GL_KEEP, GL_KEEP, GL_INCR);
+
+				if ((sprite->_maskInfluence)) //パーツに対してのマスクが有効か否か
+				{
+					glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+					glStencilFunc(GL_NOTEQUAL, 0x1, 0x1);  //1と等しい
+					glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
+				}
+				else {
+					glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
+					glDisable(GL_STENCIL_TEST);
+				}
+
+				// 常に無効
+				glDisable(GL_ALPHA_TEST);
 			}
-
-			glEnable(GL_ALPHA_TEST);
-
-			//この設定だと
-			//1.0fでは必ず抜けないため非表示フラグなし（＝1.0f)のときの挙動は考えたほうがいい
-
+		}
+		if (sprite->_partData.type == PARTTYPE_MASK)
+		{
 			//不透明度からマスク閾値へ変更
 			float mask_alpha = (float)(255 - sprite->_state.masklimen) / 255.0f;
 			glAlphaFunc(GL_GREATER, mask_alpha);
-			sprite->_state.Calc_opacity = 255;	//マスクパーツは不透明度1.0にする
 		}
-		else {
-
-			if ((sprite->_maskInfluence)) //パーツに対してのマスクが有効か否か
-			{
-				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-				glStencilFunc(GL_NOTEQUAL, 0x1, 0x1);  //1と等しい
-				glStencilOp(GL_KEEP, GL_KEEP, GL_KEEP);
-			}
-			else {
-				glColorMask(GL_TRUE, GL_TRUE, GL_TRUE, GL_TRUE);
-				glDisable(GL_STENCIL_TEST);
-			}
-
-			// 常に無効
-			glDisable(GL_ALPHA_TEST);
-		}
-
-	}
-
-	/**
-	* ユーザーデータの取得
-	*/
-	void SSonUserData(Player *player, UserData *userData)
-	{
-		//ゲーム側へユーザーデータを設定する関数を呼び出してください。
-	}
-
-	/**
-	* ユーザーデータの取得
-	*/
-	void SSPlayEnd(Player *player)
-	{
-		//ゲーム側へアニメ再生終了を設定する関数を呼び出してください。
 	}
 
 	/**

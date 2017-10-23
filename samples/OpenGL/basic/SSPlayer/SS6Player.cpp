@@ -1319,6 +1319,8 @@ Player::Player(void)
 	,_maskFuncFlag(true)
 	,_maskParentSetting(true)
 	,_parentMatUse(false)					//プレイヤーが持つ継承されたマトリクスがあるか？
+	,_userDataCallback(nullptr)
+	,_playEndCallback(nullptr)
 {
 	int i;
 	for (i = 0; i < PART_VISIBLE_MAX; i++)
@@ -1768,7 +1770,10 @@ void Player::updateFrame(float dt)
 		stop();
 	
 		// 再生終了コールバックの呼び出し
-		SSPlayEnd(this);
+		if (_playEndCallback)
+		{
+			_playEndCallback(this);
+		}
 	}
 }
 
@@ -2691,17 +2696,17 @@ void Player::setFrame(int frameNo, float dt)
 		// パーツカラーの反映
 		if (flags & PART_FLAG_PARTS_COLOR)
 		{
-
 			int typeAndFlags = reader.readU16();
 			int funcNo = typeAndFlags & 0xff;
 			int cb_flags = (typeAndFlags >> 8) & 0xff;
+			float blend_rate = 1.0f;
 
 			state.partsColorFunc = funcNo;
 			state.partsColorType = cb_flags;
 
-			//制限となります。
 			if (cb_flags & VERTEX_FLAG_ONE)
 			{
+				blend_rate = reader.readFloat();
 				reader.readColor(color4);
 
 
@@ -2709,32 +2714,52 @@ void Player::setFrame(int frameNo, float dt)
 				color4.g = color4.g * _col_g / 255;
 				color4.b = color4.b * _col_b / 255;
 
+				if ( funcNo == BLEND_MIX)
+				{
+					//ブレンド方法　MIX　かつ　単色の場合はAは255固定で処理する
+					color4.a = 255;
+				}
+
 				quad.tl.colors =
 				quad.tr.colors =
 				quad.bl.colors =
 				quad.br.colors = color4;
+
+				state.rate.oneRate = blend_rate;
 			}
 			else
 			{
 				if (cb_flags & VERTEX_FLAG_LT)
 				{
+					blend_rate = reader.readFloat();
 					reader.readColor(color4);
 					quad.tl.colors = color4;
+
+					state.rate.vartTLRate = blend_rate;
 				}
 				if (cb_flags & VERTEX_FLAG_RT)
 				{
+					blend_rate = reader.readFloat();
 					reader.readColor(color4);
 					quad.tr.colors = color4;
+
+					state.rate.vartTRRate = blend_rate;
 				}
 				if (cb_flags & VERTEX_FLAG_LB)
 				{
+					blend_rate = reader.readFloat();
 					reader.readColor(color4);
 					quad.bl.colors = color4;
+
+					state.rate.vartBLRate = blend_rate;
 				}
 				if (cb_flags & VERTEX_FLAG_RB)
 				{
+					blend_rate = reader.readFloat();
 					reader.readColor(color4);
 					quad.br.colors = color4;
+
+					state.rate.vartBRRate = blend_rate;
 				}
 			}
 		}
@@ -3182,7 +3207,10 @@ void Player::draw()
 
 	if (!_currentAnimeRef) return;
 
-	SSRenderSetup();
+	if (_maskFuncFlag == true) //マスク機能が有効（インスタンスのソースアニメではない）
+	{
+		SSRenderSetup();
+	}
 
 	ToPointer ptr(_currentRs->data);
 	const AnimePackData* packData = _currentAnimeRef->animePackData;
@@ -3257,11 +3285,17 @@ void Player::draw()
 			}
 		}
 	}
-	enableMask(false);
+	if (_maskFuncFlag == true) //マスク機能が有効（インスタンスのソースアニメではない）
+	{
+		enableMask(false);
+		SSRenderEnd();
+	}
 }
 
 void Player::checkUserData(int frameNo)
 {
+	if (!_userDataCallback) return;
+
 	ToPointer ptr(_currentRs->data);
 
 	const AnimePackData* packData = _currentAnimeRef->animePackData;
@@ -3340,7 +3374,7 @@ void Player::checkUserData(int frameNo)
 		_userData.partName = static_cast<const char*>(ptr(parts[partIndex].name));
 		_userData.frameNo = frameNo;
 		
-		SSonUserData(this, &_userData);
+		_userDataCallback(this, &_userData);
 	}
 
 }
@@ -3435,6 +3469,16 @@ void Player::setMaskFuncFlag(bool flg)
 void Player::setMaskParentSetting(bool flg)
 {
 	_maskParentSetting = flg;
+}
+
+void Player::setUserDataCallback(const UserDataCallback& callback)
+{
+	_userDataCallback = callback;
+}
+
+void Player::setPlayEndCallback(const PlayEndCallback& callback)
+{
+	_playEndCallback = callback;
 }
 
 /**

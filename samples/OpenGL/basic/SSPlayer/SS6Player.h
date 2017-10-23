@@ -91,6 +91,7 @@ https://github.com/SpriteStudio/SpriteStudio6-SDK
 #include <stdarg.h>
 #include <assert.h>
 #include <time.h>
+#include <functional>
 
 //エフェクト関連
 #include "./Common/loader/ssloader.h"
@@ -188,6 +189,7 @@ struct State
 	bool flipY;						/// 縦反転（親子関係計算済）
 	bool isVisibled;				/// 非表示（親子関係計算済）
 	SSV3F_C4B_T2F_Quad quad;		/// 頂点データ、座標、カラー値、UVが含まれる（頂点変形、サイズXY、UV移動XY、UVスケール、UV回転、反転が反映済）
+	SSPARTCOLOR_RATE rate;			/// パーツカラーに含まれるレート
 	TextuerData texture;			/// セルに対応したテクスチャ番号（ゲーム側で管理している番号を設定する）
 	SSRect rect;					/// セルに対応したテクスチャ内の表示領域（開始座標、幅高さ）
 	int blendfunc;					/// パーツに設定されたブレンド方法
@@ -242,6 +244,11 @@ struct State
 		priority = 0;
 		partsColorFunc = 0;
 		partsColorType = 0;
+		rate.oneRate = 1.0f;
+		rate.vartTLRate = 1.0f;
+		rate.vartTRRate = 1.0f;
+		rate.vartBLRate = 1.0f;
+		rate.vartBRRate = 1.0f;
 		flipX = false;
 		flipY = false;
 		isVisibled = false;
@@ -363,6 +370,15 @@ public:
 		}
 	}
 
+	void setStateValue(SSPARTCOLOR_RATE& ref, SSPARTCOLOR_RATE value)
+	{
+		//		if (ref != value)
+		{
+			ref = value;
+			_isStateChanged = true;
+		}
+	}
+
 	void setState(const State& state)
 	{
 		_state.name = state.name;
@@ -398,8 +414,9 @@ public:
 		setStateValue(_state.blendfunc, state.blendfunc);
 		setStateValue(_state.partsColorFunc, state.partsColorFunc);
 		setStateValue(_state.partsColorType, state.partsColorType);
-
 		setStateValue(_state.quad, state.quad);
+		setStateValue(_state.rate, state.rate);
+
 		_state.texture = state.texture;
 		_state.rect = state.rect;
 		memcpy(&_state.mat, &state.mat, sizeof(_state.mat));
@@ -1285,6 +1302,61 @@ public:
 	*/
 	void draw();
 
+	typedef std::function<void(Player*, const UserData*)> UserDataCallback;
+	typedef std::function<void(Player*)> PlayEndCallback;
+	/**
+	* ユーザーデータを受け取るコールバックを設定します.
+	* 再生したフレームにユーザーデータが設定されている場合呼び出されます。
+	* プレイヤーを判定する場合、ゲーム側で管理しているss::Playerのアドレスと比較して判定してください。
+	*
+	* コールバック内でパーツのステータスを取得したい場合は、この時点ではアニメが更新されていないため、
+	* getPartStateに data->frameNo でフレーム数を指定して取得してください。
+	* //再生しているモーションに含まれるパーツ名「collision」のステータスを取得します。
+	* ss::ResluteState result;
+	* ssplayer->getPartState(result, "collision", data->frameNo);
+	*
+	* コールバック内でアニメーションの再生フレーム変更したい場合は
+	* 次に行われるゲームのアップデート内でプレイヤーに対してアニメーションの操作をしてください。
+	*
+	* @param  callback  ユーザーデータ受け取りコールバック
+	*
+	* @code
+	* player->setUserDataCallback(CC_CALLBACK_2(MyScene::userDataCallback, this));
+	* --
+	* void MyScene::userDataCallback(ss::Player* player, const ss::UserData* data)
+	* {
+	*   ...
+	* }
+	* @endcode
+	*/
+	void setUserDataCallback(const UserDataCallback& callback);
+
+	/**
+	* 再生終了時に呼び出されるコールバックを設定します.
+	* 再生したアニメーションが終了した段階で呼び出されます。
+	* プレイヤーを判定する場合、ゲーム側で管理しているss::Playerのアドレスと比較して判定してください。
+	* player->getPlayAnimeName();
+	* を使用する事で再生しているアニメーション名を取得する事もできます。
+	*
+	* ループ回数分再生した後に呼び出される点に注意してください。
+	* 無限ループで再生している場合はコールバックが発生しません。
+	*
+	* コールバック内でアニメーションの再生フレーム変更したい場合は
+	* 次に行われるゲームのアップデート内でプレイヤーに対してアニメーションの操作をしてください。
+	*
+	* @param  callback  再生終了受け取りコールバック
+	*
+	* @code
+	* player->setPlayEndCallback(CC_CALLBACK_1(MyScene::playEndCallback, this));
+	* --
+	* void MyScene::playEndCallback(ss::Player* player)
+	* {
+	*   ...
+	* }
+	* @endcode
+	*/
+	void setPlayEndCallback(const PlayEndCallback& callback);
+
 public:
 	Player(void);
 	~Player();
@@ -1354,6 +1426,9 @@ protected:
 	int _direction;										//プレイヤーの座標系設定
 	int _window_w;
 	int _window_h;
+
+	UserDataCallback	_userDataCallback;
+	PlayEndCallback		_playEndCallback;
 };
 
 

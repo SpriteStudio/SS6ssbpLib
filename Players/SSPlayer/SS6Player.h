@@ -1,5 +1,5 @@
 ﻿//-----------------------------------------------------------
-// SS6ssbpLib v1.0.0
+// SS6ssbpLib v1.1.0
 //
 // Copyright(C) Web Technology Corp.
 // http://www.webtech.co.jp/
@@ -10,7 +10,7 @@
 
 
 /************************************************************
-対応するssbpフォーマットはバージョン5です。
+対応するssbpフォーマットはバージョン6です。
 Ss6ConverterのフォーマットバージョンはSpriteStudio6-SDKを参照してください。
 https://github.com/SpriteStudio/SpriteStudio6-SDK
 
@@ -157,7 +157,8 @@ extern void get_uv_rotation(float *u, float *v, float cu, float cv, float deg);
 struct State
 {
 	std::string name;				/// パーツ名
-	int flags;						/// このフレームで更新が行われるステータスのフラグ
+	int flags;						/// このフレームで更新が行われるステータスのフラグ1
+	int flags2;						/// このフレームで更新が行われるステータスのフラグ2
 	int cellIndex;					/// パーツに割り当てられたセルの番号
 	float x;						/// SS5アトリビュート：X座標
 	float y;						/// SS5アトリビュート：Y座標
@@ -213,6 +214,8 @@ struct State
 	int			effectValue_startTime;
 	float		effectValue_speed;
 	int			effectValue_loopflag;
+	//メッシュデータ
+	std::vector<SsVector3> meshVertexPoint;
 
 	void init()
 	{
@@ -280,6 +283,7 @@ struct State
 		Calc_scaleY = 1.0f;
 		Calc_opacity = 255;
 
+		meshVertexPoint.clear();
 	}
 
 	State() { init(); }
@@ -305,6 +309,7 @@ public:
 	bool				_isStateChanged;
 	CustomSprite*		_parent;
 	Player*				_ssplayer;
+	Player*				_parentPlayer;
 	float				_liveFrame;
 	SSV3F_C4B_T2F_Quad	_sQuad;
 
@@ -321,6 +326,16 @@ public:
 	//エフェクト制御用ワーク
 	bool effectAttrInitialized;
 	float effectTimeTotal;
+
+	//メッシュ情報
+	int						_meshVertexSize;	//メッシュの頂点サイズ
+	std::vector<SsVector2>	_meshVertexUV;		//メッシュのUV
+	std::vector<SsVector3>	_meshIndices;		//メッシュの頂点順
+	float*					_mesh_uvs;			// UVバッファ
+	float*					_mesh_colors;		// カラーバッファ
+	float*					_mesh_vertices;		// 座標バッファ
+	int						_meshTriangleSize;	//トライアングルのサイズ
+	unsigned short*			_mesh_indices;		// 頂点順
 
 public:
 	CustomSprite();
@@ -344,6 +359,15 @@ public:
 	}
 
 	void setStateValue(int& ref, int value)
+	{
+		if (ref != value)
+		{
+			ref = value;
+			_isStateChanged = true;
+		}
+	}
+
+	void setStateValue(ss_s64& ref, ss_s64 value)
 	{
 		if (ref != value)
 		{
@@ -383,6 +407,7 @@ public:
 	{
 		_state.name = state.name;
 		setStateValue(_state.flags, state.flags);
+		setStateValue(_state.flags2, state.flags2);
 		setStateValue(_state.cellIndex, state.cellIndex);
 		setStateValue(_state.x, state.x);
 		setStateValue(_state.y, state.y);
@@ -438,6 +463,9 @@ public:
 		_state.Calc_scaleX = state.Calc_scaleX;
 		_state.Calc_scaleY = state.Calc_scaleY;
 		_state.Calc_opacity = state.Calc_opacity;
+
+		_state.meshVertexPoint.clear();
+		_state.meshVertexPoint = state.meshVertexPoint;
 
 	}
 
@@ -749,6 +777,12 @@ enum {
 	NUM_PART_FLAGS
 };
 
+enum {
+	PART_FLAG_MESHDATA			= 1 << 0,		/// メッシュデータ
+
+	NUM_PART_FLAGS2
+};
+
 /**
 * 頂点変形フラグ
 */
@@ -927,6 +961,13 @@ public:
 	 * @param  dataKey  再生するデータのdataKey
 	 */
 	void setData(const std::string& dataKey);
+
+	/**
+	* 再生しているssbpデータのdataKeyを取得します.
+	*
+	* @return 再生しているssbp名
+	*/
+	std::string getPlayDataName(void);
 
 	/**
 	 * 設定されているssbpデータを解放します.
@@ -1362,6 +1403,7 @@ public:
 	~Player();
 	bool init();
 
+	State getState( void );
 
 protected:
 	void allocParts(int numParts, bool useCustomShaderProgram);

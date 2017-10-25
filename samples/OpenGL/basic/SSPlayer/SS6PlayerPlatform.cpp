@@ -391,6 +391,91 @@ namespace ss
 	}
 
 	/**
+	* メッシュの表示
+	*/
+	void SSDrawMesh(CustomSprite *sprite, State state)
+	{
+		bool ispartColor = (state.flags & PART_FLAG_PARTS_COLOR);
+
+		// 単色で処理する
+		float alpha = ((float)state.quad.tl.colors.a / 255.0f) * ((float)state.Calc_opacity / 255.0f);
+		float setcol[4];
+		setcol[0] = state.quad.tl.colors.r / 255.0f;
+		setcol[1] = state.quad.tl.colors.g / 255.0f;
+		setcol[2] = state.quad.tl.colors.b / 255.0f;
+		setcol[3] = alpha;
+
+		if (
+			(_ssDrawState.partsColorFunc != state.partsColorFunc)
+			|| (_ssDrawState.partsColorType != state.partsColorType)
+			|| (_ssDrawState.partsColorUse != ispartColor)
+		   )
+		{
+			// パーツカラーの指定
+			if (ispartColor)
+			{
+
+				// パーツカラーがある時だけブレンド計算する
+				setupPartsColorTextureCombiner((BlendType)state.partsColorFunc, (VertexFlag)state.partsColorType, state.rate);
+			}
+			else
+			{
+				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE0);
+				// αだけ合成
+				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE0);
+				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
+				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
+				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+
+			}
+		}
+
+
+		//メッシュの座標データは親子の計算が済んでいるのでプレイヤーのTRSで変形させる
+		float t[16];
+		float mat[16];
+		IdentityMatrix(mat);
+		State pls = sprite->_parentPlayer->getState();
+
+		MultiplyMatrix(pls.mat, mat, mat);
+
+		for (size_t i = 0; i < sprite->_meshVertexSize; i++)
+		{
+			sprite->_mesh_colors[i * 4 + 0] = setcol[0];
+			sprite->_mesh_colors[i * 4 + 1] = setcol[1];
+			sprite->_mesh_colors[i * 4 + 2] = setcol[2];
+			sprite->_mesh_colors[i * 4 + 3] = setcol[3];
+
+			//プレイヤーのマトリクスをメッシュデータに与える
+			TranslationMatrix(t, sprite->_mesh_vertices[i * 3 + 0], sprite->_mesh_vertices[i * 3 + 1], sprite->_mesh_vertices[i * 3 + 2]);
+			MultiplyMatrix(t, mat, t);
+			sprite->_mesh_vertices[i * 3 + 0] = t[12];
+			sprite->_mesh_vertices[i * 3 + 1] = t[13];
+			sprite->_mesh_vertices[i * 3 + 2] = t[14];
+
+		}
+
+
+		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		glEnableClientState(GL_COLOR_ARRAY);
+		glEnableClientState(GL_VERTEX_ARRAY);
+		// UV 配列を指定する
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glTexCoordPointer(2, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_uvs);
+
+		glColorPointer(4, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_colors);
+
+		// 頂点バッファの設定
+		glVertexPointer(3, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_vertices);
+
+
+		glDrawElements(GL_TRIANGLES, sprite->_meshTriangleSize * 3, GL_UNSIGNED_SHORT, sprite->_mesh_indices);
+	}
+
+	/**
 	* スプライトの表示
 	*/
 	void SSDrawSprite(CustomSprite *sprite, State *overwrite_state)
@@ -438,24 +523,36 @@ namespace ss
 		quad.br.vertices.x += cx;
 		quad.br.vertices.y += cy;
 
+		float mat[16];
+		IdentityMatrix(mat);
+		State pls = sprite->_parentPlayer->getState();	//プレイヤーのTRSを最終座標に加える
+
+		MultiplyMatrix(pls.mat, mat, mat);
+
 		float t[16];
 		TranslationMatrix(t, quad.tl.vertices.x, quad.tl.vertices.y, 0.0f);
 
-		MultiplyMatrix(t, state.mat, t);
+		MultiplyMatrix(t, state.mat, t);	//SS上のTRS
+		MultiplyMatrix(t, mat, t);			//プレイヤーのTRS	
 		quad.tl.vertices.x = t[12];
 		quad.tl.vertices.y = t[13];
 		TranslationMatrix(t, quad.tr.vertices.x, quad.tr.vertices.y, 0.0f);
 		MultiplyMatrix(t, state.mat, t);
+		MultiplyMatrix(t, mat, t);
 		quad.tr.vertices.x = t[12];
 		quad.tr.vertices.y = t[13];
 		TranslationMatrix(t, quad.bl.vertices.x, quad.bl.vertices.y, 0.0f);
 		MultiplyMatrix(t, state.mat, t);
+		MultiplyMatrix(t, mat, t);
 		quad.bl.vertices.x = t[12];
 		quad.bl.vertices.y = t[13];
 		TranslationMatrix(t, quad.br.vertices.x, quad.br.vertices.y, 0.0f);
 		MultiplyMatrix(t, state.mat, t);
+		MultiplyMatrix(t, mat, t);
 		quad.br.vertices.x = t[12];
 		quad.br.vertices.y = t[13];
+
+
 
 		//頂点カラーにアルファを設定
 		float alpha = state.Calc_opacity / 255.0f;
@@ -521,13 +618,22 @@ namespace ss
 		}
 
 		//メッシュの場合描画
+		bool ispartColor = (state.flags & PART_FLAG_PARTS_COLOR);
+
 		if (sprite->_partData.type == PARTTYPE_MESH)
 		{
-//			renderMesh(state->meshPart, alpha);
+			SSDrawMesh(sprite, state);
+
+			_ssDrawState.texture = texture[tex_index]->tex;
+			_ssDrawState.partType = sprite->_partData.type;
+			_ssDrawState.partBlendfunc = state.blendfunc;
+			_ssDrawState.partsColorFunc = state.partsColorFunc;
+			_ssDrawState.partsColorType = state.partsColorType;
+			_ssDrawState.partsColorUse = (int)ispartColor;
+			_ssDrawState.maskInfluence = (int)sprite->_maskInfluence;
 			return;
 		}
 
-		bool ispartColor = (state.flags & PART_FLAG_PARTS_COLOR);
 		if (
 			   (_ssDrawState.partsColorFunc != state.partsColorFunc)
 			|| (_ssDrawState.partsColorType != state.partsColorType)

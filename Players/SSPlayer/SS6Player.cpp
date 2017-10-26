@@ -2501,17 +2501,6 @@ void Player::setFrame(int frameNo, float dt)
 
 		_partIndex[index] = partIndex;
 
-		if ( _state.flipX == true )
-		{
-			//プレイヤーのXフリップ
-			flipX = !flipX;	//フラグ反転
-		}
-		if (_state.flipY == true)
-		{
-			//プレイヤーのYフリップ
-			flipY = !flipY;	//フラグ反転
-		}
-
 		//セルの原点設定を反映させる
 		CellRef* cellRef = cellIndex >= 0 ? _currentRs->cellCache->getReference(cellIndex) : nullptr;
 		if (cellRef)
@@ -3043,6 +3032,9 @@ void Player::setFrame(int frameNo, float dt)
 
 			//インスタンスパラメータを設定
 			sprite->_ssplayer->setColor(_col_r, _col_g, _col_b);
+			sprite->_ssplayer->setPosition(_state.x, _state.y);
+			sprite->_ssplayer->setRotation(_state.rotationX, _state.rotationY, _state.rotationZ);
+			sprite->_ssplayer->setScale(_state.scaleX, _state.scaleY);
 
 			//インスタンス用SSPlayerに再生フレームを設定する
 			sprite->_ssplayer->setFrameNo(_time);
@@ -3092,7 +3084,17 @@ void Player::setFrame(int frameNo, float dt)
 		Matrix4RotationZ(t, SSRadianToDegree(_state.rotationZ));
 		MultiplyMatrix(t, mat, mat);
 
-		ScaleMatrix(t, _state.scaleX, _state.scaleY, 1.0f);
+		float scale_x = _state.scaleX;
+		float scale_y = _state.scaleY;
+		if (_state.flipX == true)
+		{
+			scale_x = -scale_x;	//フラグ反転
+		}
+		if (_state.flipY == true)
+		{
+			scale_y = -scale_y;	//フラグ反転
+		}
+		ScaleMatrix(t, scale_x, scale_y, 1.0f);
 		MultiplyMatrix(t, mat, mat);
 
 		memcpy(_state.mat, mat, sizeof(float) * 16);	//表示にはローカルマトリクスを適用する
@@ -3129,14 +3131,14 @@ void Player::setFrame(int frameNo, float dt)
 						{
 							memcpy(mat, _parentMat, sizeof(float) * 16);
 						}
-
-//						sprite->_state.x += _state.x;	//スケールの影響を受けるのでrootにプレイヤー座標を加えてはいけない
-//						sprite->_state.y += _state.y;
-//						sprite->_state.rotationX += _state.rotationX;
-//						sprite->_state.rotationY += _state.rotationY;
-//						sprite->_state.rotationZ += _state.rotationZ;
-//						sprite->_state.scaleX *= _state.scaleX;
-//						sprite->_state.scaleY *= _state.scaleY;
+/*
+						sprite->_state.x += _state.x;	//スケールの影響を受けるのでrootにプレイヤー座標を加えてはいけない
+						sprite->_state.y += _state.y;
+						sprite->_state.rotationX += _state.rotationX;
+						sprite->_state.rotationY += _state.rotationY;
+						sprite->_state.rotationZ += _state.rotationZ;
+						sprite->_state.scaleX *= _state.scaleX;
+						sprite->_state.scaleY *= _state.scaleY;
 						//プレイヤーのフリップ
 						if (_state.flipX == true)
 						{
@@ -3146,7 +3148,7 @@ void Player::setFrame(int frameNo, float dt)
 						{
 							sprite->_state.scaleY = -sprite->_state.scaleY;	//フラグ反転
 						}
-
+*/
 						sprite->_state.Calc_rotationX = sprite->_state.rotationX;
 						sprite->_state.Calc_rotationY = sprite->_state.rotationY;
 						sprite->_state.Calc_rotationZ = sprite->_state.rotationZ;

@@ -185,7 +185,7 @@ void Init()
 	ssplayer->setPlayEndCallback(playEndCallback);
 
 	//ssbpに含まれているアニメーション名のリストを取得する
-	animename = resman->getAnimeName("character_template1");
+	animename = resman->getAnimeName(ssplayer->getPlayDataName());
 	playindex = 0;				//現在再生しているアニメのインデックス
 }
 

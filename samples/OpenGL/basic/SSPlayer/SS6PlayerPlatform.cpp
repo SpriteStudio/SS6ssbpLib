@@ -420,16 +420,8 @@ namespace ss
 			}
 			else
 			{
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE0);
-				// αだけ合成
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE0);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
-				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
-				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
-
+				//ディフォルトは乗算
+				setupPartsColorTextureCombiner(BlendType::BLEND_MUL, VertexFlag::VERTEX_FLAG_ONE, state.rate);
 			}
 		}
 
@@ -454,7 +446,7 @@ namespace ss
 			MultiplyMatrix(t, mat, t);
 			sprite->_mesh_vertices[i * 3 + 0] = t[12];
 			sprite->_mesh_vertices[i * 3 + 1] = t[13];
-			sprite->_mesh_vertices[i * 3 + 2] = t[14];
+			sprite->_mesh_vertices[i * 3 + 2] = 0;
 
 		}
 
@@ -647,16 +639,8 @@ namespace ss
 			}
 			else
 			{
-				// カラーは１００％テクスチャ
-				glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE0);
-				// αだけ合成
-				glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE0);
-				glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
-				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
-				glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+				//ディフォルトは乗算
+				setupPartsColorTextureCombiner(BlendType::BLEND_MUL, VertexFlag::VERTEX_FLAG_ONE, state.rate);
 			}
 		}
 

@@ -168,10 +168,9 @@ void Init()
 	//それぞれのプラットフォームに合わせたパスへ変更してください。
 	resman->addData("Resources/character_template_comipo/character_template1.ssbp");
 	//プレイヤーにリソースを割り当て
-	ssplayer->setData("character_template1");        // ssbpファイル名（拡張子不要）
+	ssplayer->setData("character_template1");						// ssbpファイル名（拡張子不要）
 	//再生するモーションを設定
-	ssplayer->play("character_template_3head/stance");				 // アニメーション名を指定(ssae名/アニメーション名も可能、詳しくは後述)
-//	ssplayer->play("character_template_2head/jump_air");				 // アニメーション名を指定(ssae名/アニメーション名も可能、詳しくは後述)
+	ssplayer->play("character_template_3head/stance");				// アニメーション名を指定(ssae名/アニメーション)
 
 
 	//表示位置を設定

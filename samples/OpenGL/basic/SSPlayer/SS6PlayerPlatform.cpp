@@ -485,6 +485,14 @@ namespace ss
 	*/
 	void SSDrawSprite(CustomSprite *sprite, State *overwrite_state)
 	{
+		//アプリケーションからPlayer::drawに渡された拡張パラメータ
+		void* exParam = sprite->_parentPlayer->getExParamDraw();
+		if (exParam)
+		{
+			//exParamをキャストして使用してください。
+		}
+
+
 		if (sprite->_state.isVisibled == false) return; //非表示なので処理をしない
 
 		//ステータスから情報を取得し、各プラットフォームに合わせて機能を実装してください。
@@ -587,7 +595,8 @@ namespace ss
 
 
 		//描画モード
-		//
+		//SS6ではストレートアルファで保持、ブレンドを行います。
+		//プリマルチアルファで処理を行う場合はブレンドファンクションが異なります。
 		if (_ssDrawState.partBlendfunc != state.blendfunc)
 		{
 			glBlendEquation(GL_FUNC_ADD);
@@ -657,6 +666,8 @@ namespace ss
 			}
 		}
 
+		// ssbpLibでは4つの頂点でスプライトの表示を実装しています。
+		// SS6では５つの頂点でスプライトの表示を行っており、頂点変形時のゆがみ方が異なります。
 		float	uvs[10];			// UVバッファ
 		float	colors[4 * 4];		// カラーバッファ
 		float	vertices[3 * 5];	// 座標バッファ

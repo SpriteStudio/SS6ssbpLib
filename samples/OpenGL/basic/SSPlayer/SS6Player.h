@@ -1,5 +1,5 @@
 ﻿//-----------------------------------------------------------
-// SS6ssbpLib v1.3.0
+// SS6ssbpLib v1.3.1
 //
 // Copyright(C) Web Technology Corp.
 // http://www.webtech.co.jp/
@@ -1341,8 +1341,12 @@ public:
 
 	/*
 	* プレイヤーの表示を行います。ゲームの表示タイミングで呼び出してください。
+	*
+	* @param  exParam		拡張パラメータ
+	*						アプリケーションから描画に何かパラメータを渡す場合に使用してください。
+	*
 	*/
-	void draw();
+	void draw(void* exParam = nullptr);
 
 	typedef std::function<void(Player*, const UserData*)> UserDataCallback;
 	typedef std::function<void(Player*)> PlayEndCallback;
@@ -1405,6 +1409,7 @@ public:
 	bool init();
 
 	State getState( void );
+	void* getExParamDraw(void) { return _exParamDraw; };
 
 protected:
 	void allocParts(int numParts, bool useCustomShaderProgram);
@@ -1472,6 +1477,8 @@ protected:
 
 	UserDataCallback	_userDataCallback;
 	PlayEndCallback		_playEndCallback;
+
+	void*				_exParamDraw;					//描画に渡す拡張パラメータ
 };
 
 

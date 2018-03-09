@@ -1295,9 +1295,9 @@ bool ResourceManager::isDataKeyExists(const std::string& dataKey) {
 static const std::string s_nullString;
 
 Player::Player(void)
-	: _resman(NULL)
-	, _currentRs(NULL)
-	, _currentAnimeRef(NULL)
+	: _resman(nullptr)
+	, _currentRs(nullptr)
+	, _currentAnimeRef(nullptr)
 	, _frameSkipEnabled(true)
 	, _playingFrame(0.0f)
 	, _step(1.0f)
@@ -1310,7 +1310,7 @@ Player::Player(void)
 	, _col_g(255)
 	, _col_b(255)
 	, _instanceOverWrite(false)
-	, _motionBlendPlayer(NULL)
+	, _motionBlendPlayer(nullptr)
 	, _blendTime(0.0f)
 	, _blendTimeMax(0.0f)
 	,_startFrameOverWrite(-1)	//開始フレームの上書き設定
@@ -1321,6 +1321,7 @@ Player::Player(void)
 	,_parentMatUse(false)					//プレイヤーが持つ継承されたマトリクスがあるか？
 	,_userDataCallback(nullptr)
 	,_playEndCallback(nullptr)
+	, _exParamDraw(nullptr)
 {
 	int i;
 	for (i = 0; i < PART_VISIBLE_MAX; i++)
@@ -1583,7 +1584,7 @@ void Player::motionBlendPlay(const std::string& animeName, int loop, int startFr
 		//現在のアニメーションをブレンド用プレイヤーで再生
 		if (_motionBlendPlayer == NULL)
 		{
-			_motionBlendPlayer = ss::Player::create();
+			_motionBlendPlayer = ss::Player::create(_resman);
 		}
 		int loopnum = _loop;
 		if (_loop > 0)
@@ -1831,6 +1832,10 @@ void Player::releaseParts()
 			}
 		}
 	}
+	for (auto&& i : _parts)
+	{
+		SS_SAFE_DELETE(i);
+	}
 
 	_parts.clear();
 }
@@ -1870,7 +1875,7 @@ void Player::setPartsParentage()
 		if (refanimeName != "")
 		{
 			//インスタンスパーツが設定されている
-			sprite->_ssplayer = ss::Player::create();
+			sprite->_ssplayer = ss::Player::create(_resman);
 			sprite->_ssplayer->setMaskFuncFlag(false);
 			sprite->_ssplayer->setMaskParentSetting(partData->maskInfluence);
 
@@ -3336,9 +3341,10 @@ void Player::setFrame(int frameNo, float dt)
 }
 
 //プレイヤーの描画
-void Player::draw()
+void Player::draw( void* exParam )
 {
 	_draw_count = 0;
+	_exParamDraw = exParam;	//拡張パラメータの保存
 
 	if (!_currentAnimeRef) return;
 
@@ -3380,7 +3386,7 @@ void Player::draw()
 			if (sprite->_ssplayer)
 			{
 				//インスタンスパーツの場合は子供のプレイヤーを再生
-				sprite->_ssplayer->draw();
+				sprite->_ssplayer->draw(_exParamDraw);
 				_draw_count += sprite->_ssplayer->getDrawSpriteCount();
 			}
 			else

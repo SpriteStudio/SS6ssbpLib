@@ -453,6 +453,10 @@ protected:
 					behavior.refCell.cellIndex = behavior.CellIndex;
 					std::string name = static_cast<const char*>(ptr(cellRef->cell->name));
 					behavior.refCell.cellName = name;
+					behavior.refCell.u1 = cellRef->cell->u1;
+					behavior.refCell.v1 = cellRef->cell->v1;
+					behavior.refCell.u2 = cellRef->cell->u2;
+					behavior.refCell.v2 = cellRef->cell->v2;
 
 				}
 				//				behavior.CellName;

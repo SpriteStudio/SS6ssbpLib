@@ -199,12 +199,12 @@ public:
 		releseReference();
 	}
 
-	static CellCache* create(const ProjectData* data, const std::string& imageBaseDir)
+	static CellCache* create(const ProjectData* data, const std::string& imageBaseDir, const std::string& zipFilepath)
 	{
 		CellCache* obj = new CellCache();
 		if (obj)
 		{
-			obj->init(data, imageBaseDir);
+			obj->init(data, imageBaseDir, zipFilepath);
 		}
 		return obj;
 	}
@@ -271,7 +271,7 @@ public:
 	}
 
 protected:
-	void init(const ProjectData* data, const std::string& imageBaseDir)
+	void init(const ProjectData* data, const std::string& imageBaseDir, const std::string& zipFilepath)
 	{
 
 		SS_ASSERT2(data != NULL, "Invalid data");
@@ -291,7 +291,7 @@ protected:
 			if (cellMap->index >= (int)_textures.size())
 			{
 				const char* imagePath = static_cast<const char*>(ptr(cellMap->imagePath));
-				addTexture(imagePath, imageBaseDir, (SsTexWrapMode::_enum)cellMap->wrapmode, (SsTexFilterMode::_enum)cellMap->filtermode);
+				addTexture(imagePath, imageBaseDir, (SsTexWrapMode::_enum)cellMap->wrapmode, (SsTexFilterMode::_enum)cellMap->filtermode, zipFilepath);
 			}
 
 			//セル情報だけ入れておく
@@ -321,7 +321,7 @@ protected:
 		_refs.clear();
 	}
 
-	void addTexture(const std::string& imagePath, const std::string& imageBaseDir, SsTexWrapMode::_enum  wrapmode, SsTexFilterMode::_enum filtermode)
+	void addTexture(const std::string& imagePath, const std::string& imageBaseDir, SsTexWrapMode::_enum  wrapmode, SsTexFilterMode::_enum filtermode, const std::string& zipFilepath)
 	{
 		std::string path = "";
 		
@@ -343,7 +343,7 @@ protected:
 		}
 
 		//テクスチャの読み込み
-		long tex = SSTextureLoad(path.c_str(), wrapmode, filtermode);
+		long tex = SSTextureLoad(path.c_str(), wrapmode, filtermode, zipFilepath.c_str());
 		SSLOG("load: %s", path.c_str());
 		TextuerData texdata;
 		texdata.handle = tex;
@@ -1077,7 +1077,7 @@ std::vector<std::string> ResourceManager::getAnimeName(const std::string& dataKe
 	return animename;
 }
 
-std::string ResourceManager::addData(const std::string& dataKey, const ProjectData* data, const std::string& imageBaseDir)
+std::string ResourceManager::addData(const std::string& dataKey, const ProjectData* data, const std::string& imageBaseDir, const std::string& zipFilepath, bool imageZipLoad)
 {
 	SS_ASSERT2(data != NULL, "Invalid data");
 	SS_ASSERT2(data->dataId == DATA_ID, "Not data id matched");
@@ -1093,7 +1093,16 @@ std::string ResourceManager::addData(const std::string& dataKey, const ProjectDa
 	}
 
 	//アニメはエフェクトを参照し、エフェクトはセルを参照するのでこの順番で生成する必要がある
-	CellCache* cellCache = CellCache::create(data, baseDir);
+	CellCache* cellCache = NULL;
+	if (imageZipLoad == false)
+	{
+		//画像はZIPファイルの中身を使用するZIPファイル名は空白にする
+		cellCache = CellCache::create(data, baseDir, "");
+	}
+	else
+	{
+		cellCache = CellCache::create(data, baseDir, zipFilepath);
+	}
 
 	EffectCache* effectCache = EffectCache::create(data, baseDir, cellCache);	//
 
@@ -1110,13 +1119,13 @@ std::string ResourceManager::addData(const std::string& dataKey, const ProjectDa
 	return dataKey;
 }
 
-std::string ResourceManager::addDataWithKey(const std::string& dataKey, const std::string& ssbpFilepath, const std::string& imageBaseDir)
+std::string ResourceManager::addDataWithKey(const std::string& dataKey, const std::string& ssbpFilepath, const std::string& imageBaseDir, const std::string& zipFilepath, bool imageZipLoad)
 {
 
 	std::string fullpath = ssbpFilepath;
 
 	unsigned long nSize = 0;
-	void* loadData = SSFileOpen(fullpath.c_str(), "rb", &nSize);
+	void* loadData = SSFileOpen(fullpath.c_str(), "rb", &nSize, zipFilepath.c_str());
 	if (loadData == NULL)
 	{
 		std::string msg = "Can't load project data > " + fullpath;
@@ -1149,7 +1158,7 @@ std::string ResourceManager::addDataWithKey(const std::string& dataKey, const st
 		//SSLOG("imageBaseDir: %s", baseDir.c_str());
 	}
 
-	addData(dataKey, data, baseDir);
+	addData(dataKey, data, baseDir, zipFilepath, imageZipLoad);
 	
 	// リソースが破棄されるとき一緒にロードしたデータも破棄する
 	ResourceSet* rs = getData(dataKey);
@@ -1159,7 +1168,7 @@ std::string ResourceManager::addDataWithKey(const std::string& dataKey, const st
 	return dataKey;
 }
 
-std::string ResourceManager::addData(const std::string& ssbpFilepath, const std::string& imageBaseDir)
+std::string ResourceManager::addData(const std::string& ssbpFilepath, const std::string& imageBaseDir, const std::string& zipFilepath, bool imageZipLoad)
 {
 	// ファイル名を取り出す
 	std::string directory;
@@ -1183,7 +1192,7 @@ std::string ResourceManager::addData(const std::string& ssbpFilepath, const std:
 		return str;
 	}
 
-	return addDataWithKey(dataKey, ssbpFilepath, imageBaseDir);
+	return addDataWithKey(dataKey, ssbpFilepath, imageBaseDir, zipFilepath, imageZipLoad);
 }
 
 void ResourceManager::removeData(const std::string& dataKey)
@@ -1317,14 +1326,14 @@ Player::Player(void)
 	, _motionBlendPlayer(nullptr)
 	, _blendTime(0.0f)
 	, _blendTimeMax(0.0f)
-	,_startFrameOverWrite(-1)	//開始フレームの上書き設定
-	,_endFrameOverWrite(-1)		//終了フレームの上書き設定
+	, _startFrameOverWrite(-1)	//開始フレームの上書き設定
+	, _endFrameOverWrite(-1)		//終了フレームの上書き設定
 	, _seedOffset(0)
-	,_maskFuncFlag(true)
-	,_maskParentSetting(true)
-	,_parentMatUse(false)					//プレイヤーが持つ継承されたマトリクスがあるか？
-	,_userDataCallback(nullptr)
-	,_playEndCallback(nullptr)
+	, _maskFuncFlag(true)
+	, _maskParentSetting(true)
+	, _parentMatUse(false)					//プレイヤーが持つ継承されたマトリクスがあるか？
+	, _userDataCallback(nullptr)
+	, _playEndCallback(nullptr)
 	, _exParamDraw(nullptr)
 {
 	int i;
@@ -1351,6 +1360,10 @@ Player::~Player()
 	releaseData();
 	releaseResourceManager();
 	releaseAnime();
+
+	_resman = nullptr;
+	_currentRs = nullptr;
+	_currentAnimeRef = nullptr;
 }
 
 Player* Player::create(ResourceManager* resman)
@@ -2390,6 +2403,12 @@ void Player::setParentMatrix(float* mat, bool use )
 {
 	memcpy(_parentMat, mat, sizeof(float) * 16);	//
 	_parentMatUse = use;					//プレイヤーが持つ継承されたマトリクスがあるか？
+
+	if (_parentMatUse == true)
+	{
+		//プレイヤーが持つ継承されたマトリクスがある場合はこの時点でステータスを更新しておく
+		memcpy(_state.mat, _parentMat, sizeof(float) * 16);
+	}
 }
 
 void Player::setFrame(int frameNo, float dt)

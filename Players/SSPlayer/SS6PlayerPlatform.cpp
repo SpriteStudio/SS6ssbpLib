@@ -10,10 +10,14 @@
 
 namespace ss
 {
-	//テクスチャ管理クラス
-	#define TEXTURE_MAX (512)				//全プレイヤーで使えるのテクスチャ枚数
-	SSTextureGL* texture[TEXTURE_MAX];		//テクスチャ情報の保持
-	int texture_index = 0;					//手k数茶情報の参照ポインタ
+	//セルマップの参照するテクスチャ割り当て管理用バッファ
+#define TEXTURE_MAX (512)							//全プレイヤーで使えるのセルマップの枚数
+	SSTextureGL* texture[TEXTURE_MAX];				//セルマップの参照するテクスチャ情報の保持
+	std::string textureKey[TEXTURE_MAX];			//セルマップの参照するテクスチャキャッシュに登録するキー
+	int texture_index = 0;							//セルマップの参照ポインタ
+
+	//レンダリング用ブレンドファンクションを使用するかフラグ
+	static bool enableRenderingBlendFunc = false;
 
 	//座標系設定
 	int _direction;
@@ -25,10 +29,17 @@ namespace ss
 	void SSPlatformInit(void)
 	{
 		memset(texture, 0, sizeof(texture));
+		int i;
+		for (i = 0; i < TEXTURE_MAX; i++)
+		{
+			textureKey[i] = "";
+		}
 		texture_index = 0;
 		_direction = PLUS_UP;
 		_window_w = 1280;
 		_window_h = 720;
+
+		enableRenderingBlendFunc = false;
 	}
 	//アプリケーション終了時の処理
 	void SSPlatformRelese(void)
@@ -62,33 +73,55 @@ namespace ss
 	}
 
 	/**
+	* レンダリング用のブレンドファンクションを使用する.
+	* レンダリングターゲットとアルファ値がブレンドされてしまうためカラー値のみのレンダリングファンクションにする
+	*
+	* @param  flg	      通常描画:false、レンダリング描画:true
+	*/
+	void SSRenderingBlendFuncEnable(int flg)
+	{
+		enableRenderingBlendFunc = flg;
+	}
+
+	/**
 	* ファイル読み込み
 	*/
-	unsigned char* SSFileOpen(const char* pszFileName, const char* pszMode, unsigned long * pSize)
+	unsigned char* SSFileOpen(const char* pszFileName, const char* pszMode, unsigned long * pSize, const char *pszZipFileName)
 	{
 		unsigned char * pBuffer = NULL;
 		SS_ASSERT2(pszFileName != NULL && pSize != NULL && pszMode != NULL, "Invalid parameters.");
 		*pSize = 0;
-		do
+
+		if (strcmp(pszZipFileName, "") != 0)
 		{
-		    // read the file from hardware
-			FILE *fp = fopen(pszFileName, pszMode);
-		    SS_BREAK_IF(!fp);
-		    
-		    fseek(fp,0,SEEK_END);
-		    *pSize = ftell(fp);
-		    fseek(fp,0,SEEK_SET);
-		    pBuffer = new unsigned char[*pSize];
-		    *pSize = fread(pBuffer,sizeof(unsigned char), *pSize,fp);
-		    fclose(fp);
-		} while (0);
-		if (! pBuffer)
+			//Zipファイルの読込み
+			//何かしらのZIPファイル読み込み処理
+		}
+		else
+		{
+			//直接ファイルを読む
+			do
+			{
+				// read the file from hardware
+				FILE *fp = fopen(pszFileName, pszMode);
+				SS_BREAK_IF(!fp);
+
+				fseek(fp, 0, SEEK_END);
+				*pSize = ftell(fp);
+				fseek(fp, 0, SEEK_SET);
+				pBuffer = new unsigned char[*pSize];
+				*pSize = fread(pBuffer, sizeof(unsigned char), *pSize, fp);
+				fclose(fp);
+			} while (0);
+		}
+
+		if (!pBuffer)
 		{
 
 			std::string msg = "Get data from file(";
-		    msg.append(pszFileName).append(") failed!");
-		    
-		    SSLOG("%s", msg.c_str());
+			msg.append(pszFileName).append(") failed!");
+
+			SSLOG("%s", msg.c_str());
 
 		}
 		return pBuffer;
@@ -97,7 +130,7 @@ namespace ss
 	/**
 	* テクスチャの読み込み
 	*/
-	long SSTextureLoad(const char* pszFileName, int  wrapmode, int filtermode)
+	long SSTextureLoad(const char* pszFileName, int  wrapmode, int filtermode, const char *pszZipFileName)
 	{
 		/**
 		* テクスチャ管理用のユニークな値を返してください。
@@ -105,6 +138,7 @@ namespace ss
 		* テクスチャにアクセスするハンドルや、テクスチャを割り当てたバッファ番号等になります。
 		*
 		* プレイヤーはここで返した値とパーツのステータスを引数に描画を行います。
+		* ResourceManager::changeTextureを使用する場合はSSTextureLoadから取得したインデックスを設定してください。
 		*/
 		long rc = 0;
 
@@ -116,33 +150,39 @@ namespace ss
 		{
 			if (texture[texture_index] == 0)	//使われていないテクスチャ情報
 			{
-				//読み込み処理
-				texture[texture_index] = SSTextureGL::create();
-				texture[texture_index]->Load(pszFileName);
-				if (!texture[texture_index]->tex) {
-					DEBUG_PRINTF("テクスチャの読み込み失敗\n");
+
+				if (strcmp(pszZipFileName, "") != 0)
+				{
+					//何かしらのZIPファイル読み込む処理
 				}
 				else
 				{
-					isLoad = true;
-					rc = texture_index;	//テクスチャハンドルをリソースマネージャに設定する
+					//読み込み処理
+					texture[texture_index] = SSTextureGL::create();
+					texture[texture_index]->Load(pszFileName);
+					if (!texture[texture_index]->tex) {
+						DEBUG_PRINTF("テクスチャの読み込み失敗\n");
+					}
+					else
+					{
+						isLoad = true;
+						rc = texture_index;	//テクスチャハンドルをリソースマネージャに設定する
+						textureKey[rc] = pszFileName;	//登録したテクスチャのキーを保存する
+					}
 				}
 				exit = false;	//ループ終わり
-			}
-			else
-			{
-				if (texture_index == start_index)
-				{
-					//一周したバッファが開いてない
-					DEBUG_PRINTF("テクスチャバッファの空きがない\n");
-					exit = false;	//ループ終わり
-				}
 			}
 			//次のインデックスに移動する
 			texture_index++;
 			if (texture_index >= TEXTURE_MAX)
 			{
 				texture_index = 0;
+			}
+			if (texture_index == start_index)
+			{
+				//一周したバッファが開いてない
+				DEBUG_PRINTF("テクスチャバッファの空きがない\n");
+				exit = false;	//ループ終わり
 			}
 		}
 
@@ -205,13 +245,42 @@ namespace ss
 		if (texture[handle])
 		{
 			delete (texture[handle]);
-			texture[handle] = 0;
 		}
 		else
 		{
 			rc = false;
 		}
+		//登録情報の削除
+		texture[handle] = 0;
+		textureKey[handle] = "";	//登録したテクスチャのキーを保存する
+
 		return rc ;
+	}
+
+	/**
+	* 画像ファイル名から読み込まれているテクスチャバッファのインデックスを取得する
+	* keyはResourcesフォルダからの画像ファイルまでのパスになります。
+	*
+	* 使用されていない場合はfalseになります。
+	*/
+	bool SSGetTextureIndex(std::string  key, std::vector<int> *indexList)
+	{
+		bool rc = false;
+
+		indexList->clear();
+
+		int i;
+		for (i = 0; i < TEXTURE_MAX; i++)
+		{
+			if (textureKey[i] == key)
+			{
+				indexList->push_back(i);
+				rc = true;
+			}
+		}
+
+
+		return (rc);
 	}
 
 	/**
@@ -600,34 +669,103 @@ namespace ss
 		if (_ssDrawState.partBlendfunc != state.blendfunc)
 		{
 			glBlendEquation(GL_FUNC_ADD);
-			switch (state.blendfunc)
+			if (enableRenderingBlendFunc == false)
 			{
-			case BLEND_MIX:		///< 0 ブレンド（ミックス）
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-			case BLEND_MUL:		///< 1 乗算
-				glBlendFunc(GL_ZERO, GL_SRC_COLOR);
-				break;
-			case BLEND_ADD:		///< 2 加算
-				glBlendFunc(GL_SRC_ALPHA, GL_ONE);
-				break;
-			case BLEND_SUB:		///< 3 減算
-				glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
-				glBlendFuncSeparateEXT(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_DST_ALPHA);
-				break;
-			case BLEND_MULALPHA:	///< 4 α乗算
-				glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
-				break;
-			case BLEND_SCREEN:		///< 5 スクリーン
-				glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE);
-				break;
-			case BLEND_EXCLUSION:	///< 6 除外
-				glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR);
-				break;
-			case BLEND_INVERT:		///< 7 反転
-				glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO);
-				break;
+				//通常の描画
+				switch (state.blendfunc)
+				{
+				case BLEND_MIX:		///< 0 ブレンド（ミックス）
+					glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+					break;
+				case BLEND_MUL:		///< 1 乗算
+					glBlendFunc(GL_ZERO, GL_SRC_COLOR);
+					break;
+				case BLEND_ADD:		///< 2 加算
+					glBlendFunc(GL_SRC_ALPHA, GL_ONE);
+					break;
+				case BLEND_SUB:		///< 3 減算
+					glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+					glBlendFuncSeparateEXT(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_DST_ALPHA);
+					break;
+				case BLEND_MULALPHA:	///< 4 α乗算
+					glBlendFunc(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA);
+					break;
+				case BLEND_SCREEN:		///< 5 スクリーン
+					glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE);
+					break;
+				case BLEND_EXCLUSION:	///< 6 除外
+					glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR);
+					break;
+				case BLEND_INVERT:		///< 7 反転
+					glBlendFunc(GL_ONE_MINUS_DST_COLOR, GL_ZERO);
+					break;
 
+				}
+			}
+			else
+			{
+				//レンダリング用の描画
+				switch (state.blendfunc)
+				{
+				case BLEND_MIX:		///< 0 ブレンド（ミックス）
+#if OPENGLES20
+					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#else
+					glBlendFuncSeparateEXT(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+					break;
+				case BLEND_MUL:		///< 1 乗算
+#if OPENGLES20
+					glBlendFuncSeparate(GL_ZERO, GL_SRC_COLOR, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#else
+					glBlendFuncSeparateEXT(GL_ZERO, GL_SRC_COLOR, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+					break;
+				case BLEND_ADD:		///< 2 加算
+#if OPENGLES20
+					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#else
+					glBlendFuncSeparateEXT(GL_SRC_ALPHA, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+					break;
+				case BLEND_SUB:		///< 3 減算
+
+					glBlendEquation(GL_FUNC_REVERSE_SUBTRACT);
+#if OPENGLES20
+					glBlendFuncSeparate(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE_MINUS_SRC_ALPHA);
+#else
+					glBlendFuncSeparateEXT(GL_SRC_ALPHA, GL_ONE, GL_ZERO, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+					break;
+				case BLEND_MULALPHA:	///< 4 α乗算
+#if OPENGLES20
+					glBlendFuncSeparate(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#else
+					glBlendFuncSeparateEXT(GL_DST_COLOR, GL_ONE_MINUS_SRC_ALPHA, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+					break;
+				case BLEND_SCREEN:		///< 5 スクリーン
+#if OPENGLES20
+					glBlendFuncSeparate(GL_ONE_MINUS_DST_COLOR, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#else
+					glBlendFuncSeparateEXT(GL_ONE_MINUS_DST_COLOR, GL_ONE, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+					break;
+				case BLEND_EXCLUSION:	///< 6 除外
+#if OPENGLES20
+					glBlendFuncSeparate(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#else
+					glBlendFuncSeparateEXT(GL_ONE_MINUS_DST_COLOR, GL_ONE_MINUS_SRC_COLOR, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+					break;
+				case BLEND_INVERT:		///< 7 反転
+#if OPENGLES20
+					glBlendFuncSeparate(GL_ONE_MINUS_DST_COLOR, GL_ZERO, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#else
+					glBlendFuncSeparateEXT(GL_ONE_MINUS_DST_COLOR, GL_ZERO, GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+#endif
+					break;
+				}
 			}
 		}
 

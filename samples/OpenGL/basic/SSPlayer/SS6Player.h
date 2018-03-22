@@ -1,5 +1,5 @@
 ﻿//-----------------------------------------------------------
-// SS6ssbpLib v1.3.2
+// SS6ssbpLib v1.3.3
 //
 // Copyright(C) Web Technology Corp.
 // http://www.webtech.co.jp/
@@ -512,14 +512,26 @@ public:
 	static ResourceManager* getInstance();
 
 	/**
-	 * ssbpファイルを読み込み管理対象とします.
-	 * dataKeyはssbpのファイル名（拡張子なし）になります.
-	 *
-	 * @param  ssbpFilepath  ssbpファイルのパス
-	 * @param  imageBaseDir  画像ファイルの読み込み元ルートパス. 省略時はssbpのある場所をルートとします.
-	 * @return dataKey
-	 */
-	std::string addData(const std::string& ssbpFilepath, const std::string& imageBaseDir = s_null);
+	* ssbpファイルを読み込み管理対象とします.
+	* dataKeyはssbpのファイル名（拡張子なし）になります.
+	*
+	* @param  ssbpFilepath  ssbp ファイルのパス
+	* @param  imageBaseDir  画像ファイルを読み込むルートになるパス。省略時は ssbp ファイルのある場所をルートとします。
+	*                       指定しない場合は引数を "" としてください。
+	* @param  zipFilepath   ZIP ファイルから読み込む場合のパス。省略時は ssbpFilepath で指定された ssbp ファイルを直接読み込みます。
+	*                       ZIP から ssbp ファイルを読み込む場合は、ssbpFilepath には zip ファイル内の ssbp ファイルへのパスを指定してください。
+	*                       例：temp フォルダに test.ssbp があり、temp フォルダをZIPにした temp.ZIP から読みこむ場合
+	*                       zipFilepath は Resourceフォルダから temp.zip までのパス。
+	*                       ssbpFilepath は ZIP 内の ssbp ファイルのパスとなり temp/test.ssbp になり、
+	*                       引数は以下のようになります。
+	*                       resman->addData("temp/test.ssbp", "", "temp.zip");
+	*
+	* @param  imageZipLoad  画像を ZIP ファイルから読み込む場合は true 、ファイルを読む場合は false にします。
+	*                       false を指定し、直接画像を読み込む場合は Resource フォルダに ZIP と同じ構成のフォルダを作成し画像を置くか、
+	*                       または imageBaseDir で画像のあるフォルダを指定してください。
+	* @return dataKey
+	*/
+	std::string addData(const std::string& ssbpFilepath, const std::string& imageBaseDir = s_null, const std::string& zipFilepath = s_null, bool imageZipLoad = true);
 
 	/**
 	 * ssbpファイルを読み込み管理対象とします.
@@ -527,9 +539,11 @@ public:
 	 * @param  dataKey       dataKeyの指定
 	 * @param  ssbpFilepath  ssbpファイルのパス
 	 * @param  imageBaseDir  画像ファイルの読み込み元ルートパス. 省略時はssbpのある場所をルートとします.
+	 * @param  zipFilepath   上記 addData のコメントを参照してください。
+	 * @param  imageZipLoad  上記 addData のコメントを参照してください。
 	 * @return dataKey
 	 */
-	std::string addDataWithKey(const std::string& dataKey, const std::string& ssbpFilepath, const std::string& imageBaseDir = s_null);
+	std::string addDataWithKey(const std::string& dataKey, const std::string& ssbpFilepath, const std::string& imageBaseDir = s_null, const std::string& zipFilepath = s_null, bool imageZipLoad = true);
 
 	/**
 	 * 指定されたssbpデータを管理対象とします.
@@ -537,10 +551,12 @@ public:
 	 * @param  dataKey       dataKeyの指定
 	 * @param  data          ssbpデータ
 	 * @param  imageBaseDir  画像ファイルの読み込み元ルートパス. 省略時はssbpのある場所をルートとします.
+	 * @param  zipFilepath   上記 addData のコメントを参照してください。
+	 * @param  imageZipLoad  上記 addData のコメントを参照してください。
 	 * @return dataKey
 	 */
-	std::string addData(const std::string& dataKey, const ProjectData* data, const std::string& imageBaseDir = s_null);
-	
+	std::string addData(const std::string& dataKey, const ProjectData* data, const std::string& imageBaseDir = s_null, const std::string& zipFilepath = s_null, bool imageZipLoad = true);
+
 	/**
 	 * 指定データを解放します.
 	 * パス、拡張子を除いたssbp名を指定してください。
@@ -565,11 +581,14 @@ public:
 	std::vector<std::string> getAnimeName(const std::string& dataKey);
 		
 	/**
-	* 指定したセルのテクスチャを変更します.
+	* 指定したセルマップのテクスチャを変更します.
+	* SSTextureLoadで差し替える画像を読み込み、取得したインデックスを設定してください。
+	*
 	* @param  ssbpName       ssbp名（拡張子を除くファイル名）
 	* @param  ssceName       ssce名（拡張子を除くファイル名）
 	* @param  texture        変更後のテクスチャハンドル
 	* @return 変更を行ったか
+	*
 	*/
 	bool changeTexture(char* ssbpName, char* ssceName, long texture);
 

@@ -10,8 +10,13 @@
 
 namespace ss
 {
+	//きれいな頂点変形に対応する場合は1にする。
+	//４ポリゴンで変形します。
+	//0の場合はZ型の２ポリゴンで変形します。
+	#define USE_TRIANGLE_FIN (1)
+
 	//セルマップの参照するテクスチャ割り当て管理用バッファ
-#define TEXTURE_MAX (512)							//全プレイヤーで使えるのセルマップの枚数
+	#define TEXTURE_MAX (512)							//全プレイヤーで使えるのセルマップの枚数
 	SSTextureGL* texture[TEXTURE_MAX];				//セルマップの参照するテクスチャ情報の保持
 	std::string textureKey[TEXTURE_MAX];			//セルマップの参照するテクスチャキャッシュに登録するキー
 	int texture_index = 0;							//セルマップの参照ポインタ
@@ -360,6 +365,31 @@ namespace ss
 		glBlendEquation(GL_FUNC_ADD);
 		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
 	}
+
+	//中間点を求める
+	static void	CoordinateGetDiagonalIntersection(SsVector2& out, const SsVector2& LU, const SsVector2& RU, const SsVector2& LD, const SsVector2& RD)
+	{
+		out = SsVector2(0.f, 0.f);
+
+		/* <<< 係数を求める >>> */
+		float c1 = (LD.y - RU.y) * (LD.x - LU.x) - (LD.x - RU.x) * (LD.y - LU.y);
+		float c2 = (RD.x - LU.x) * (LD.y - LU.y) - (RD.y - LU.y) * (LD.x - LU.x);
+		float c3 = (RD.x - LU.x) * (LD.y - RU.y) - (RD.y - LU.y) * (LD.x - RU.x);
+
+
+		if (c3 <= 0 && c3 >= 0) return;
+
+		float ca = c1 / c3;
+		float cb = c2 / c3;
+
+		/* <<< 交差判定 >>> */
+		if (((0.0f <= ca) && (1.0f >= ca)) && ((0.0f <= cb) && (1.0f >= cb)))
+		{	/* 交差している */
+			out.x = LU.x + ca * (RD.x - LU.x);
+			out.y = LU.y + ca * (RD.y - LU.y);
+		}
+	}
+
 	/**
 	パーツカラー用
 	ブレンドタイプに応じたテクスチャコンバイナの設定を行う
@@ -533,15 +563,13 @@ namespace ss
 		}
 
 
-		glDisableClientState(GL_TEXTURE_COORD_ARRAY);
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 		glEnableClientState(GL_COLOR_ARRAY);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		// UV 配列を指定する
-		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
 		glTexCoordPointer(2, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_uvs);
-
+		// カラー配列を設定する
 		glColorPointer(4, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_colors);
-
 		// 頂点バッファの設定
 		glVertexPointer(3, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_vertices);
 
@@ -806,10 +834,92 @@ namespace ss
 
 		// ssbpLibでは4つの頂点でスプライトの表示を実装しています。
 		// SS6では５つの頂点でスプライトの表示を行っており、頂点変形時のゆがみ方が異なります。
-		float	uvs[10];			// UVバッファ
-		float	colors[4 * 4];		// カラーバッファ
+		float	uvs[2*5];			// UVバッファ
+		float	colors[4 * 5];		// カラーバッファ
 		float	vertices[3 * 5];	// 座標バッファ
 
+		memset(uvs, 0, sizeof(uvs));
+		memset(colors, 0, sizeof(colors));
+		memset(vertices, 0, sizeof(vertices));
+
+#if USE_TRIANGLE_FIN
+		setClientState(quad.tl, 0, uvs, colors, vertices);
+		setClientState(quad.tr, 1, uvs, colors, vertices);
+		setClientState(quad.bl, 2, uvs, colors, vertices);
+		setClientState(quad.br, 3, uvs, colors, vertices);
+
+		// UV 配列を指定する
+		glEnableClientState(GL_VERTEX_ARRAY);
+		glTexCoordPointer(2, GL_FLOAT, 0, (GLvoid *)uvs);
+		// カラー配列を指定する
+		glEnableClientState(GL_COLOR_ARRAY);
+		glColorPointer(4, GL_FLOAT, 0, (GLvoid *)colors);
+		// 頂点バッファの設定
+		glEnableClientState(GL_TEXTURE_COORD_ARRAY);
+		glVertexPointer(3, GL_FLOAT, 0, (GLvoid *)vertices);
+
+		//きれいな頂点変形に対応
+		if ((state.flags & PART_FLAG_PARTS_COLOR) || (state.flags & PART_FLAG_VERTEX_TRANSFORM))
+		{
+			//頂点変形、パーツカラーを使用した場合は中心に頂点を作成し4つのポリゴンに分割して描画を行う。
+			//頂点の算出
+			SsVector2	vertexCoordinateLU = SsVector2(quad.tl.vertices.x, quad.tl.vertices.y);// : 左上頂点座標（ピクセル座標系）
+			SsVector2	vertexCoordinateRU = SsVector2(quad.tr.vertices.x, quad.tr.vertices.y);// : 右上頂点座標（ピクセル座標系）
+			SsVector2	vertexCoordinateLD = SsVector2(quad.bl.vertices.x, quad.bl.vertices.y);// : 左下頂点座標（ピクセル座標系）
+			SsVector2	vertexCoordinateRD = SsVector2(quad.br.vertices.x, quad.br.vertices.y);// : 右下頂点座標（ピクセル座標系）
+
+			SsVector2 CoordinateLURU = (vertexCoordinateLU + vertexCoordinateRU) * 0.5f;
+			SsVector2 CoordinateLULD = (vertexCoordinateLU + vertexCoordinateLD) * 0.5f;
+			SsVector2 CoordinateLDRD = (vertexCoordinateLD + vertexCoordinateRD) * 0.5f;
+			SsVector2 CoordinateRURD = (vertexCoordinateRU + vertexCoordinateRD) * 0.5f;
+
+			SsVector2 center;
+			CoordinateGetDiagonalIntersection(center, CoordinateLURU, CoordinateRURD, CoordinateLULD, CoordinateLDRD);
+
+			SsVector2*	coodinatetable[] = { &vertexCoordinateLU , &vertexCoordinateRU , &vertexCoordinateLD , &vertexCoordinateRD , &center };
+
+			//頂点の設定
+			int i;
+			vertices[4 * 3 + 0] = center.x;
+			vertices[4 * 3 + 1] = center.y;
+			vertices[4 * 3 + 2] = 0;
+			//UVの設定
+			for (i = 0; i < 4; ++i)
+			{
+				uvs[4 * 2] += uvs[i * 2];
+				uvs[4 * 2 + 1] += uvs[i * 2 + 1];
+			}
+			uvs[4 * 2] /= 4.0f;
+			uvs[4 * 2 + 1] /= 4.0f;
+
+			float a, r, g, b;
+			a = r = g = b = 0;
+			for (int i = 0; i < 4; i++)
+			{
+				int idx = i * 4;
+				r += colors[idx++];
+				g += colors[idx++];
+				b += colors[idx++];
+				a += colors[idx++];
+			}
+			//カラー値の設定
+			int idx = 4 * 4;
+			colors[idx++] = r / 4.0f;
+			colors[idx++] = g / 4.0f;
+			colors[idx++] = b / 4.0f;
+			colors[idx++] = a / 4.0f;
+
+			//描画
+			static const GLubyte indices[] = { 4, 3, 1, 0, 2, 3 };
+			glDrawElements(GL_TRIANGLE_FAN, 6, GL_UNSIGNED_BYTE, indices);
+		}
+		else
+		{
+			// 変形しないスプライトはZ型の2ポリゴンで分割表示する
+			// 頂点配列を描画
+			glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
+		}
+#else
 		setClientState(quad.tl, 0, uvs, colors, vertices);
 		setClientState(quad.tr, 1, uvs, colors, vertices);
 		setClientState(quad.bl, 2, uvs, colors, vertices);
@@ -827,7 +937,7 @@ namespace ss
 
 		// 頂点配列を描画
 		glDrawArrays(GL_TRIANGLE_STRIP, 0, 4);
-
+#endif
 		//レンダリングステートの保存
 		_ssDrawState.texture = texture[tex_index]->tex;
 		_ssDrawState.partType = sprite->_partData.type;

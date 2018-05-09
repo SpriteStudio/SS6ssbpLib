@@ -2748,10 +2748,20 @@ void Player::setFrame(int frameNo, float dt)
 				center = quad.tl.vertices.y + h;
 				float scale = (size_Y / 2.0f) / h;
 
-				quad.bl.vertices.y = center - (h * scale);
-				quad.br.vertices.y = center - (h * scale);
-				quad.tl.vertices.y = center + (h * scale);
-				quad.tr.vertices.y = center + (h * scale);
+				if (_direction == PLUS_DOWN)	//Y座標反転
+				{
+					quad.bl.vertices.y = center + (h * scale);
+					quad.br.vertices.y = center + (h * scale);
+					quad.tl.vertices.y = center - (h * scale);
+					quad.tr.vertices.y = center - (h * scale);
+				}
+				else
+				{
+					quad.bl.vertices.y = center - (h * scale);
+					quad.br.vertices.y = center - (h * scale);
+					quad.tl.vertices.y = center + (h * scale);
+					quad.tr.vertices.y = center + (h * scale);
+				}
 			}
 		}
 		// 頂点変形のオフセット値を反映

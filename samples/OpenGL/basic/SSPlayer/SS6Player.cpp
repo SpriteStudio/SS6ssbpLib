@@ -2761,23 +2761,47 @@ void Player::setFrame(int frameNo, float dt)
 			int vt_flags = reader.readU16();
 			if (vt_flags & VERTEX_FLAG_LT)
 			{
-				quad.tl.vertices.x += reader.readFloat();
-				quad.tl.vertices.y += reader.readFloat();
+				float addx = reader.readFloat();
+				float addy = reader.readFloat();
+				if (_direction == PLUS_DOWN)	//Y座標反転
+				{
+					addy = -addy;
+				}
+				quad.tl.vertices.x += addx;
+				quad.tl.vertices.y += addy;
 			}
 			if (vt_flags & VERTEX_FLAG_RT)
 			{
-				quad.tr.vertices.x += reader.readFloat();
-				quad.tr.vertices.y += reader.readFloat();
+				float addx = reader.readFloat();
+				float addy = reader.readFloat();
+				if (_direction == PLUS_DOWN)	//Y座標反転
+				{
+					addy = -addy;
+				}
+				quad.tr.vertices.x += addx;
+				quad.tr.vertices.y += addy;
 			}
 			if (vt_flags & VERTEX_FLAG_LB)
 			{
-				quad.bl.vertices.x += reader.readFloat();
-				quad.bl.vertices.y += reader.readFloat();
+				float addx = reader.readFloat();
+				float addy = reader.readFloat();
+				if (_direction == PLUS_DOWN)	//Y座標反転
+				{
+					addy = -addy;
+				}
+				quad.bl.vertices.x += addx;
+				quad.bl.vertices.y += addy;
 			}
 			if (vt_flags & VERTEX_FLAG_RB)
 			{
-				quad.br.vertices.x += reader.readFloat();
-				quad.br.vertices.y += reader.readFloat();
+				float addx = reader.readFloat();
+				float addy = reader.readFloat();
+				if (_direction == PLUS_DOWN)	//Y座標反転
+				{
+					addy = -addy;
+				}
+				quad.br.vertices.x += addx;
+				quad.br.vertices.y += addy;
 			}
 		}
 		
@@ -2873,6 +2897,10 @@ void Player::setFrame(int frameNo, float dt)
 			{
 				float mesh_x = reader.readFloat();
 				float mesh_y = reader.readFloat();
+				if (_direction == PLUS_DOWN)	//Y座標反転
+				{
+					mesh_y = -mesh_y;
+				}
 				float mesh_z = reader.readFloat();
 				SsVector3 point(mesh_x, mesh_y, mesh_z);
 				state.meshVertexPoint.push_back(point);

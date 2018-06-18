@@ -15,7 +15,7 @@ namespace ss
  */
 
 static const ss_u32 DATA_ID = 0x42505353;
-static const ss_u32 DATA_VERSION = 8;
+static const ss_u32 DATA_VERSION = 9;
 
 
 /**
@@ -2565,8 +2565,6 @@ void Player::setFrame(int frameNo, float dt)
 			pivotY += cpy;
 
 		}
-		pivotX += 0.5f;
-		pivotY += 0.5f;
 
 		//モーションブレンド
 		if (_motionBlendPlayer)
@@ -2748,10 +2746,20 @@ void Player::setFrame(int frameNo, float dt)
 				center = quad.tl.vertices.y + h;
 				float scale = (size_Y / 2.0f) / h;
 
-				quad.bl.vertices.y = center - (h * scale);
-				quad.br.vertices.y = center - (h * scale);
-				quad.tl.vertices.y = center + (h * scale);
-				quad.tr.vertices.y = center + (h * scale);
+				if (_direction == PLUS_DOWN)	//Y座標反転
+				{
+					quad.bl.vertices.y = center + (h * scale);
+					quad.br.vertices.y = center + (h * scale);
+					quad.tl.vertices.y = center - (h * scale);
+					quad.tr.vertices.y = center - (h * scale);
+				}
+				else
+				{
+					quad.bl.vertices.y = center - (h * scale);
+					quad.br.vertices.y = center - (h * scale);
+					quad.tl.vertices.y = center + (h * scale);
+					quad.tr.vertices.y = center + (h * scale);
+				}
 			}
 		}
 		// 頂点変形のオフセット値を反映

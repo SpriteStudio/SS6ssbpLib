@@ -390,25 +390,30 @@ namespace ss
 		}
 	}
 
+	//6.2対応
+	//パーツカラー、ミックス、頂点の場合に不透明度を適用させる
 	/**
-	パーツカラー用
-	ブレンドタイプに応じたテクスチャコンバイナの設定を行う
+	ブレンドタイプに応じたテクスチャコンバイナの設定を行う (パーツカラー用)
 
-	ミックスのみコンスタント値を使う。
-	他は事前に頂点カラーに対してブレンド率を掛けておく事でαも含めてブレンドに対応している。
+	rateOrAlpha		ミックス時のみ参照される。単色では Rate に、頂点単位では Alpha になる。
+	target			ミックス時のみ参照される。
+
+	参考：http://www.opengl.org/sdk/docs/man/xhtml/glTexEnv.xml
 	*/
-	void setupPartsColorTextureCombiner(BlendType blendType, VertexFlag colorBlendTarget, SSPARTCOLOR_RATE rate)
+	static void __fastcall setupSimpleTextureCombiner_for_PartsColor_(BlendType type, float rateOrAlpha, VertexFlag target)
 	{
 		//static const float oneColor[4] = {1.f,1.f,1.f,1.f};
-		float constColor[4] = { 0.5f,0.5f,0.5f,rate.oneRate };
+		float constColor[4] = { 0.5f,0.5f,0.5f,rateOrAlpha };
 		static const GLuint funcs[] = { GL_INTERPOLATE, GL_MODULATE, GL_ADD, GL_SUBTRACT };
-		GLuint func = funcs[(int)blendType];
+		GLuint func = funcs[(int)type];
 		GLuint srcRGB = GL_TEXTURE0;
 		GLuint dstRGB = GL_PRIMARY_COLOR;
 
+		// true:  頂点αをブレンドする。
+		// false: constColor のαをブレンドする。
 		bool combineAlpha = true;
 
-		switch (blendType)
+		switch (type)
 		{
 		case BlendType::BLEND_MIX:
 		case BlendType::BLEND_MUL:
@@ -419,9 +424,9 @@ namespace ss
 			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, func);
 
 			// mix の場合、特殊
-			if (blendType == BlendType::BLEND_MIX)
+			if (type == SsBlendType::mix)
 			{
-				if (colorBlendTarget == VertexFlag::VERTEX_FLAG_ONE)
+				if (target == VertexFlag::VERTEX_FLAG_ONE)
 				{
 					// 全体なら、const 値で補間する
 					glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE2_RGB, GL_CONSTANT);
@@ -437,7 +442,6 @@ namespace ss
 				// 強度なので 1 に近付くほど頂点カラーが濃くなるよう SOURCE0 を頂点カラーにしておく。
 				std::swap(srcRGB, dstRGB);
 			}
-
 			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, srcRGB);
 			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_RGB, dstRGB);
 			glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_RGB, GL_SRC_COLOR);
@@ -465,11 +469,21 @@ namespace ss
 		}
 		else
 		{
+#if 1
+			// 浮いた const 値を頂点αの代わりにブレンドする。v6.2.0+ 2018/06/21 endo
+			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE0);
+			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_CONSTANT);
+			glTexEnvfv(GL_TEXTURE_ENV, GL_TEXTURE_ENV_COLOR, constColor);
+			glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
+			glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+#else
 			// ミックス＋頂点単位の場合αブレンドはできない。
 			// αはテクスチャを100%使えれば最高だが、そうはいかない。
 			glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_REPLACE);
 			glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE0);
 			glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
+#endif
 		}
 	}
 
@@ -515,12 +529,12 @@ namespace ss
 			{
 
 				// パーツカラーがある時だけブレンド計算する
-				setupPartsColorTextureCombiner((BlendType)state.partsColorFunc, (VertexFlag)state.partsColorType, state.rate);
+				setupSimpleTextureCombiner_for_PartsColor_((BlendType)state.partsColorFunc, state.rate.oneRate, (VertexFlag)state.partsColorType);
 			}
 			else
 			{
 				//ディフォルトは乗算
-				setupPartsColorTextureCombiner(BlendType::BLEND_MUL, VertexFlag::VERTEX_FLAG_ONE, state.rate);
+				setupSimpleTextureCombiner_for_PartsColor_(BlendType::BLEND_MUL, state.rate.oneRate, VertexFlag::VERTEX_FLAG_ONE );
 			}
 		}
 
@@ -671,11 +685,23 @@ namespace ss
 			alpha = state.localopacity / 255.0f;	//ローカル不透明度対応
 		}
 
-		quad.tl.colors.a = quad.tl.colors.a * alpha;
-		quad.tr.colors.a = quad.tr.colors.a * alpha;
-		quad.bl.colors.a = quad.bl.colors.a * alpha;
-		quad.br.colors.a = quad.br.colors.a * alpha;
-
+		if (
+			 (state.flags & PART_FLAG_PARTS_COLOR) 
+		  && ((VertexFlag)state.partsColorType != VertexFlag::VERTEX_FLAG_ONE) 
+		  && ((BlendType)state.partsColorFunc == BlendType::BLEND_MIX)
+		   )
+		{
+			//ver6.2 パーツカラー対応
+			//パーツカラー、頂点、MIXを選択した場合は不透明度を適用しない
+			//ミックスの場合、Rate として扱われるので不透明度を掛けてはいけない
+		}
+		else
+		{
+			quad.tl.colors.a = quad.tl.colors.a * alpha;
+			quad.tr.colors.a = quad.tr.colors.a * alpha;
+			quad.bl.colors.a = quad.bl.colors.a * alpha;
+			quad.br.colors.a = quad.br.colors.a * alpha;
+		}
 		//テクスチャ有効
 		int	gl_target = GL_TEXTURE_RECTANGLE_ARB;
 		if (texture[tex_index]->texture_is_pow2 == true)
@@ -797,9 +823,9 @@ namespace ss
 			}
 		}
 
-		//メッシュの場合描画
 		bool ispartColor = (state.flags & PART_FLAG_PARTS_COLOR);
 
+		//メッシュの場合描画
 		if (sprite->_partData.type == PARTTYPE_MESH)
 		{
 			SSDrawMesh(sprite, state);
@@ -814,6 +840,7 @@ namespace ss
 			return;
 		}
 
+		//パーツカラーの適用
 		if (
 			   (_ssDrawState.partsColorFunc != state.partsColorFunc)
 			|| (_ssDrawState.partsColorType != state.partsColorType)
@@ -823,12 +850,21 @@ namespace ss
 			if (state.flags & PART_FLAG_PARTS_COLOR)
 			{
 				//パーツカラーの反映
-				setupPartsColorTextureCombiner((BlendType)state.partsColorFunc, (VertexFlag)state.partsColorType, state.rate);
+				if ((VertexFlag)state.partsColorType == VertexFlag::VERTEX_FLAG_ONE)
+				{
+					//単色
+					setupSimpleTextureCombiner_for_PartsColor_((BlendType)state.partsColorFunc, state.rate.oneRate, (VertexFlag)state.partsColorType);
+				}
+				else
+				{
+					//頂点
+					setupSimpleTextureCombiner_for_PartsColor_((BlendType)state.partsColorFunc, alpha, (VertexFlag)state.partsColorType);
+				}
 			}
 			else
 			{
 				//ディフォルトは乗算
-				setupPartsColorTextureCombiner(BlendType::BLEND_MUL, VertexFlag::VERTEX_FLAG_ONE, state.rate);
+				setupSimpleTextureCombiner_for_PartsColor_(BlendType::BLEND_MUL, state.rate.oneRate, VertexFlag::VERTEX_FLAG_ONE);
 			}
 		}
 

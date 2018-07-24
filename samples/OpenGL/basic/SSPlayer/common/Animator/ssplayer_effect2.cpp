@@ -202,7 +202,7 @@ void	SsEffectEmitter::updateParticle(float time, particleDrawData* p, bool recal
         float per = _lifeper * 100.0f;
 
 
-		if ( per < start )
+		if ((per < start) && (start > 0.0f)) //Ver6.2@0œŽZ”­¶‚·‚é‰Â”\«‘Îô
 		{
 			float alpha = (start - per) / start;
 			p->color.a*= 1.0f - alpha;

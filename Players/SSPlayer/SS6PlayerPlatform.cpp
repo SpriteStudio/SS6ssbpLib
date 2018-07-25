@@ -390,6 +390,21 @@ namespace ss
 		}
 	}
 
+	//パーツカラーがない場合の設定
+	/// // RGB=100%テクスチャ、A=テクスチャｘ頂点カラーの設定にする。
+	static void __fastcall setupTextureCombinerTo_NoBlendRGB_MultiplyAlpha_()
+	{
+		// カラーは１００％テクスチャ
+		glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_COMBINE);
+		glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_RGB, GL_REPLACE);
+		glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_RGB, GL_TEXTURE0);
+		// αだけ合成
+		glTexEnvi(GL_TEXTURE_ENV, GL_COMBINE_ALPHA, GL_MODULATE);
+		glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE0_ALPHA, GL_TEXTURE0);
+		glTexEnvi(GL_TEXTURE_ENV, GL_SOURCE1_ALPHA, GL_PRIMARY_COLOR);
+		glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND0_ALPHA, GL_SRC_ALPHA);
+		glTexEnvi(GL_TEXTURE_ENV, GL_OPERAND1_ALPHA, GL_SRC_ALPHA);
+	}
 	//6.2対応
 	//パーツカラー、ミックス、頂点の場合に不透明度を適用させる
 	/**
@@ -533,8 +548,8 @@ namespace ss
 			}
 			else
 			{
-				//ディフォルトは乗算
-				setupSimpleTextureCombiner_for_PartsColor_(BlendType::BLEND_MUL, state.rate.oneRate, VertexFlag::VERTEX_FLAG_ONE );
+				//パーツカラーなし
+				setupTextureCombinerTo_NoBlendRGB_MultiplyAlpha_();
 			}
 		}
 
@@ -863,8 +878,8 @@ namespace ss
 			}
 			else
 			{
-				//ディフォルトは乗算
-				setupSimpleTextureCombiner_for_PartsColor_(BlendType::BLEND_MUL, state.rate.oneRate, VertexFlag::VERTEX_FLAG_ONE);
+				//パーツカラーなし
+				setupTextureCombinerTo_NoBlendRGB_MultiplyAlpha_();
 			}
 		}
 

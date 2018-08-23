@@ -1,5 +1,5 @@
 ﻿//-----------------------------------------------------------
-// SS6ssbpLib v1.5.0
+// SS6ssbpLib v1.5.1
 //
 // Copyright(C) Web Technology Corp.
 // http://www.webtech.co.jp/
@@ -333,6 +333,8 @@ public:
 	std::vector<SsVector2>	_meshVertexUV;		//メッシュのUV
 	std::vector<SsVector3>	_meshIndices;		//メッシュの頂点順
 	float*					_mesh_uvs;			// UVバッファ
+	bool					_not2powUVmake;		// 非べき乗のUVを作成したか？
+	float*					_mesh_uvs_not2pow;	// UVバッファ非べき乗
 	float*					_mesh_colors;		// カラーバッファ
 	float*					_mesh_vertices;		// 座標バッファ
 	int						_meshTriangleSize;	//トライアングルのサイズ

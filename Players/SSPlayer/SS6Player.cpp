@@ -1945,6 +1945,7 @@ void Player::setPartsParentage()
 
 				//メッシュ用バッファの作成
 				sprite->_mesh_uvs = new float[2 * size];						// UVバッファ
+				sprite->_mesh_uvs_not2pow = new float[2 * size];
 				sprite->_mesh_colors = new float[4 * size];						// カラーバッファ
 				sprite->_mesh_vertices = new float[3 * size];					// 座標バッファ
 
@@ -1958,6 +1959,9 @@ void Player::setPartsParentage()
 
 					sprite->_mesh_uvs[2 * i + 0] = u;						// UVバッファ
 					sprite->_mesh_uvs[2 * i + 1] = v;						// UVバッファ
+
+					sprite->_mesh_uvs_not2pow[2 * i + 0] = u;						// UVバッファ
+					sprite->_mesh_uvs_not2pow[2 * i + 1] = v;						// UVバッファ
 
 				}
 			}
@@ -3328,6 +3332,26 @@ void Player::setFrame(int frameNo, float dt)
 		const PartData* partData = &parts[partIndex];
 		CustomSprite* sprite = static_cast<CustomSprite*>(_parts.at(partIndex));
 
+		//メッシュパーツのアップデート
+		if (partData->type == PARTTYPE_MESH)
+		{
+			if (sprite->_not2powUVmake == false)
+			{
+				//非べき乗用のUVを作成する
+				CellRef* cellRef = sprite->_state.cellIndex >= 0 ? _currentRs->cellCache->getReference(sprite->_state.cellIndex) : nullptr;
+				if (cellRef)
+				{
+					int size = sprite->_meshVertexSize;	//メッシュの頂点サイズ
+					int i;
+					for (i = 0; i < size; i++)
+					{
+						sprite->_mesh_uvs_not2pow[2 * i + 0] = sprite->_mesh_uvs[2 * i + 0] * cellRef->texture.size_w;						// UVバッファ
+						sprite->_mesh_uvs_not2pow[2 * i + 1] = sprite->_mesh_uvs[2 * i + 1] * cellRef->texture.size_h;						// UVバッファ
+					}
+				}
+				sprite->_not2powUVmake = true;	//非べき乗ようのメッシュUVを作成した
+			}
+		}
 		//インスタンスパーツのアップデート
 		if (sprite->_ssplayer)
 		{
@@ -3710,6 +3734,8 @@ CustomSprite::CustomSprite():
 	, _meshIsBind(false)
 	, _meshVertexSize(0)
 	,_mesh_uvs(nullptr)							// UVバッファ
+	, _not2powUVmake(false)
+	, _mesh_uvs_not2pow(nullptr)							// UVバッファ
 	,_mesh_colors(nullptr)						// カラーバッファ
 	,_mesh_vertices(nullptr)					// 座標バッファ
 	,_mesh_indices(nullptr)
@@ -3721,6 +3747,7 @@ CustomSprite::~CustomSprite()
 {
 	//エフェクトクラスがある場合は解放する
 	SS_SAFE_DELETE(_mesh_uvs);							// UVバッファ
+	SS_SAFE_DELETE(_mesh_uvs_not2pow);							// UVバッファ
 	SS_SAFE_DELETE(_mesh_colors);						// カラーバッファ
 	SS_SAFE_DELETE(_mesh_vertices);					// 座標バッファ
 	SS_SAFE_DELETE(_mesh_indices);						// 頂点順

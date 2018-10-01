@@ -1,5 +1,5 @@
 ﻿//-----------------------------------------------------------
-// SS6ssbpLib v1.5.2
+// SS6ssbpLib v1.6.0
 //
 // Copyright(C) Web Technology Corp.
 // http://www.webtech.co.jp/

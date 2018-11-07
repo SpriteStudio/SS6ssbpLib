@@ -524,6 +524,7 @@ namespace ss
 	void SSDrawMesh(CustomSprite *sprite, State state)
 	{
 		bool ispartColor = (state.flags & PART_FLAG_PARTS_COLOR);
+		int tex_index = state.texture.handle;
 
 		// 単色で処理する
 		float alpha = ((float)state.quad.tl.colors.a / 255.0f) * ((float)state.Calc_opacity / 255.0f);
@@ -588,7 +589,6 @@ namespace ss
 				sprite->_mesh_vertices[i * 3 + 1] = t[13];
 				sprite->_mesh_vertices[i * 3 + 2] = 0;
 			}
-
 		}
 
 
@@ -596,7 +596,15 @@ namespace ss
 		glEnableClientState(GL_COLOR_ARRAY);
 		glEnableClientState(GL_VERTEX_ARRAY);
 		// UV 配列を指定する
-		glTexCoordPointer(2, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_uvs);
+		if (texture[tex_index]->texture_is_pow2 == true)
+		{
+			glTexCoordPointer(2, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_uvs);
+		}
+		else
+		{
+			//べき乗でない場合はUVがピクセル値になる　
+			glTexCoordPointer(2, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_uvs_not2pow);
+		}
 		// カラー配列を設定する
 		glColorPointer(4, GL_FLOAT, 0, (GLvoid *)sprite->_mesh_colors);
 		// 頂点バッファの設定
@@ -892,6 +900,19 @@ namespace ss
 		memset(uvs, 0, sizeof(uvs));
 		memset(colors, 0, sizeof(colors));
 		memset(vertices, 0, sizeof(vertices));
+
+		if (texture[tex_index]->texture_is_pow2 == false)
+		{
+			//べき乗でない場合はUVをピクセル値にしなくてはならない
+			quad.tl.texCoords.u *= texture[tex_index]->getWidth();
+			quad.tl.texCoords.v *= texture[tex_index]->getHeight();
+			quad.tr.texCoords.u *= texture[tex_index]->getWidth();
+			quad.tr.texCoords.v *= texture[tex_index]->getHeight();
+			quad.bl.texCoords.u *= texture[tex_index]->getWidth();
+			quad.bl.texCoords.v *= texture[tex_index]->getHeight();
+			quad.br.texCoords.u *= texture[tex_index]->getWidth();
+			quad.br.texCoords.v *= texture[tex_index]->getHeight();
+		}
 
 #if USE_TRIANGLE_FIN
 		setClientState(quad.tl, 0, uvs, colors, vertices);
